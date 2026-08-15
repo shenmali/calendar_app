@@ -22,6 +22,10 @@ type StateVerificationInput = StateInput & {
   state: string;
 };
 
+type StateConsumptionInput = StateVerificationInput & {
+  consumeNonce: (nonce: string) => Promise<boolean>;
+};
+
 function base64Url(value: Buffer | string): string {
   return Buffer.from(value).toString('base64url');
 }
@@ -52,17 +56,18 @@ export function oauthStateCookieName(provider: OAuthProvider): string {
   return `oauth_state_${provider}`;
 }
 
-export function createOAuthState({ userId, provider, now = Date.now() }: StateInput): { value: string; expiresAt: Date } {
+export function createOAuthState({ userId, provider, now = Date.now() }: StateInput): { value: string; nonce: string; expiresAt: Date } {
   const expiresAt = new Date(now + STATE_TTL_MS);
+  const nonce = base64Url(randomBytes(32));
   const payload: OAuthStatePayload = {
     userId,
     provider,
     exp: expiresAt.getTime(),
-    nonce: base64Url(randomBytes(32)),
+    nonce,
   };
   const encodedPayload = base64Url(JSON.stringify(payload));
 
-  return { value: `${encodedPayload}.${sign(encodedPayload)}`, expiresAt };
+  return { value: `${encodedPayload}.${sign(encodedPayload)}`, nonce, expiresAt };
 }
 
 export function verifyOAuthState({
@@ -113,4 +118,16 @@ export function verifyOAuthState({
   }
 
   return { userId: payload.userId, provider: payload.provider };
+}
+
+export async function consumeOAuthState(input: StateConsumptionInput): Promise<Pick<OAuthStatePayload, 'userId' | 'provider'>> {
+  const verified = verifyOAuthState(input);
+  const [encodedPayload] = input.state.split('.');
+  const payload = JSON.parse(Buffer.from(encodedPayload, 'base64url').toString('utf8')) as OAuthStatePayload;
+
+  if (!(await input.consumeNonce(payload.nonce))) {
+    return invalidState();
+  }
+
+  return verified;
 }

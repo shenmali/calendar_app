@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createOAuthState, oauthStateCookieName } from '@/lib/providers/oauth-state';
 import { createPkcePair, oauthClientCredentials, oauthRedirectUri, scopeFor } from '@/lib/providers/oauth';
 import { providerAuthorizationEndpoints } from '@/lib/providers/types';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 
 export async function GET(_request: NextRequest) {
@@ -13,6 +14,10 @@ export async function GET(_request: NextRequest) {
 
   try {
     const state = createOAuthState({ userId: user.id, provider: 'microsoft' });
+    const { error: stateError } = await createAdminClient().from('oauth_state_nonces').insert({
+      nonce: state.nonce, user_id: user.id, provider: 'microsoft', expires_at: state.expiresAt.toISOString(),
+    });
+    if (stateError) throw new Error('Unable to persist OAuth state');
     const pkce = createPkcePair();
     const credentials = oauthClientCredentials('microsoft');
     const authorizationUrl = new URL(providerAuthorizationEndpoints.microsoft);

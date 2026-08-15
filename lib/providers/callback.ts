@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-import { verifyOAuthState, oauthStateCookieName } from '@/lib/providers/oauth-state';
+import { consumeOAuthState, oauthStateCookieName } from '@/lib/providers/oauth-state';
 import { appUrl, oauthClientCredentials, oauthRedirectUri } from '@/lib/providers/oauth';
 import { providerScopes, providerTokenEndpoints, type OAuthProvider } from '@/lib/providers/types';
 import { encryptToken } from '@/lib/security/token-crypto';
@@ -61,10 +61,10 @@ export async function handleOAuthCallback(request: NextRequest, provider: OAuthP
   try {
     safeAppUrl = appUrl();
   } catch {
-    return NextResponse.json({ error: 'OAuth configuration error' }, { status: 500 });
+    return clearOAuthCookies(NextResponse.json({ error: 'OAuth configuration error' }, { status: 500 }), provider);
   }
   if (request.nextUrl.origin !== safeAppUrl.origin) {
-    return NextResponse.json({ error: 'Invalid callback origin' }, { status: 400 });
+    return clearOAuthCookies(NextResponse.json({ error: 'Invalid callback origin' }, { status: 400 }), provider);
   }
 
   const supabase = await createClient();
@@ -77,7 +77,22 @@ export async function handleOAuthCallback(request: NextRequest, provider: OAuthP
 
   try {
     if (userError || !user || !state || !code || providerError || !verifier) throw new Error('Invalid callback');
-    verifyOAuthState({ state, cookieState: stateCookie, userId: user.id, provider });
+    await consumeOAuthState({
+      state, cookieState: stateCookie, userId: user.id, provider,
+      consumeNonce: async (nonce) => {
+        const { data, error } = await createAdminClient()
+          .from('oauth_state_nonces')
+          .update({ consumed_at: new Date().toISOString() })
+          .eq('nonce', nonce)
+          .eq('user_id', user.id)
+          .eq('provider', provider)
+          .is('consumed_at', null)
+          .gt('expires_at', new Date().toISOString())
+          .select('nonce')
+          .maybeSingle();
+        return !error && Boolean(data);
+      },
+    });
 
     const credentials = oauthClientCredentials(provider);
     const tokenResponse = await fetch(providerTokenEndpoints[provider], {
@@ -93,12 +108,24 @@ export async function handleOAuthCallback(request: NextRequest, provider: OAuthP
 
     const providerAccountId = await fetchProviderAccountId(provider, tokens.access_token);
     const expiresAt = tokens.expires_in ? new Date(Date.now() + tokens.expires_in * 1000).toISOString() : null;
+    const { data: existingConnection, error: existingConnectionError } = await createAdminClient()
+      .from('oauth_connections')
+      .select('user_id, refresh_token_ciphertext')
+      .eq('provider', provider)
+      .eq('provider_account_id', providerAccountId)
+      .maybeSingle();
+    if (existingConnectionError) throw new Error('Unable to read existing connection');
+    if (existingConnection && existingConnection.user_id !== user.id) throw new Error('Connection belongs to another user');
+
+    const refreshTokenCiphertext = tokens.refresh_token
+      ? encryptToken(tokens.refresh_token)
+      : existingConnection?.refresh_token_ciphertext ?? null;
     const { error: writeError } = await createAdminClient().from('oauth_connections').upsert({
       user_id: user.id,
       provider,
       provider_account_id: providerAccountId,
       access_token_ciphertext: encryptToken(tokens.access_token),
-      refresh_token_ciphertext: tokens.refresh_token ? encryptToken(tokens.refresh_token) : null,
+      refresh_token_ciphertext: refreshTokenCiphertext,
       token_expires_at: expiresAt,
       scopes: providerScopes[provider],
     }, { onConflict: 'provider,provider_account_id' });
