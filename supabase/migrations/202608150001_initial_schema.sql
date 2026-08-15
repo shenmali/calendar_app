@@ -136,3 +136,7 @@ revoke all on table public.oauth_connections from anon, authenticated;
 
 grant select on table public.profiles, public.calendar_sources,
   public.calendar_events, public.sync_runs to authenticated;
+
+grant select, insert, update, delete on table public.profiles,
+  public.oauth_connections, public.calendar_sources, public.calendar_events,
+  public.sync_runs to service_role;

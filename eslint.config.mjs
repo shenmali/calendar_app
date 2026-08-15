@@ -13,6 +13,7 @@ const config = [
       'next-env.d.ts',
       'node_modules/**',
       'playwright-report/**',
+      'supabase/.temp/**',
       'test-results/**',
     ],
   },
