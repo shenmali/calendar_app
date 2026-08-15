@@ -42,3 +42,30 @@ export function isoInstant(value: string, timeZone?: string | null): string {
 export function rangeToIsoInstants(range: DateRange): DateRange {
   return { start: isoInstant(range.start), end: isoInstant(range.end) };
 }
+
+function calendarDateAt(instantValue: string, timeZone: string): string {
+  const instant = new Date(instantValue);
+  if (Number.isNaN(instant.getTime())) throw new Error('Expected an ISO instant');
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone, year: 'numeric', month: '2-digit', day: '2-digit',
+  }).formatToParts(instant);
+  const value = (type: Intl.DateTimeFormatPartTypes) => parts.find((part) => part.type === type)?.value;
+  const year = value('year');
+  const month = value('month');
+  const day = value('day');
+  if (!year || !month || !day) throw new Error('Expected a valid IANA timezone');
+  return `${year}-${month}-${day}`;
+}
+
+/** Compares all-day values as source-calendar dates, using half-open ranges. */
+export function allDayOverlapsRange(
+  event: { startsAt: string; endsAt: string },
+  range: DateRange,
+  timeZone = 'Europe/Istanbul',
+): boolean {
+  const startsOn = calendarDateAt(event.startsAt, timeZone);
+  const endsOn = calendarDateAt(event.endsAt, timeZone);
+  const rangeStartsOn = calendarDateAt(range.start, timeZone);
+  const rangeEndsOn = calendarDateAt(range.end, timeZone);
+  return startsOn < rangeEndsOn && endsOn > rangeStartsOn;
+}

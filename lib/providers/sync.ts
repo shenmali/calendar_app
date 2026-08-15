@@ -1,5 +1,6 @@
 import { decryptToken, encryptToken } from '@/lib/security/token-crypto';
 import type { CalendarConnection, CalendarEvent, CalendarEventCancellation, DateRange, SyncResult } from '@/lib/calendar/types';
+import { allDayOverlapsRange } from '@/lib/calendar/time';
 import { googleCalendarProvider } from '@/lib/providers/google';
 import { microsoftCalendarProvider } from '@/lib/providers/microsoft';
 import { oauthClientCredentials } from '@/lib/providers/oauth';
@@ -183,11 +184,19 @@ function defaultStore(): SyncStore {
       return existing ? 'updated' : 'imported';
     },
     async cancelMissing(connection, sourceId, remoteEventIds, range, syncedAt) {
-      const { data, error } = await (await client()).from('calendar_events').select('id, remote_event_id, status')
-        .eq('connection_id', connection.id).eq('source_id', sourceId).eq('user_id', connection.userId)
-        .lt('starts_at', range.end).gt('ends_at', range.start);
-      if (error) throw new Error('Unable to load calendar events');
-      const missing = (data ?? []).filter((event) => event.status !== 'cancelled' && !remoteEventIds.includes(event.remote_event_id));
+      const events = (await client()).from('calendar_events');
+      const scoped = () => events.select('id, remote_event_id, status, starts_at, ends_at')
+        .eq('connection_id', connection.id).eq('source_id', sourceId).eq('user_id', connection.userId);
+      const [timed, allDay] = await Promise.all([
+        scoped().eq('is_all_day', false).lt('starts_at', range.end).gt('ends_at', range.start),
+        scoped().eq('is_all_day', true),
+      ]);
+      if (timed.error || allDay.error) throw new Error('Unable to load calendar events');
+      const candidates = [
+        ...(timed.data ?? []),
+        ...(allDay.data ?? []).filter((event) => allDayOverlapsRange({ startsAt: event.starts_at, endsAt: event.ends_at }, range)),
+      ];
+      const missing = candidates.filter((event) => event.status !== 'cancelled' && !remoteEventIds.includes(event.remote_event_id));
       await Promise.all(missing.map(async (event) => {
         const { error: updateError } = await (await client()).from('calendar_events').update({
           status: 'cancelled', sync_state: 'cancelled', last_synced_at: syncedAt,
