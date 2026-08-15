@@ -3,6 +3,7 @@
 import { FormEvent, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { isAllowedEmail } from '@/lib/security/allowed-email';
+import { createMagicLinkOptions } from '@/lib/auth/magic-link';
 import { createClient } from '@/lib/supabase/browser';
 
 type LoginFormProps = {
@@ -28,9 +29,7 @@ export function LoginForm({ allowedEmail }: LoginFormProps) {
 
     const { error } = await createClient().auth.signInWithOtp({
       email: normalizedEmail,
-      options: {
-        emailRedirectTo: new URL('/auth/callback', window.location.origin).toString(),
-      },
+      options: createMagicLinkOptions(window.location.origin),
     });
 
     setIsSubmitting(false);

@@ -32,4 +32,20 @@ Playwright/Next geliştirme sunucusu, `127.0.0.1` kökeni için gelecek sürümd
 
 - Tarayıcı yalnızca `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` kullanır; service-role anahtarı yalnızca sunucu tarafındaki `lib/supabase/admin.ts` içindedir.
 - İstemci formu erken geri bildirim sağlar; callback ve middleware aynı izinli e-posta kuralını sunucuda yeniden uygular.
-- API/OAuth/cron rotaları middleware'e genişçe dahil edilmedi; bu uçların ileriki görevlerde kendi açık kimlik doğrulama sözleşmelerini uygulamasını korur.
+- Fix round 1 sonrasında middleware, auth ve Next statik istisnaları dışındaki tüm uygulama yollarını korur.
+
+## Fix round 1 (inceleme bulguları)
+
+- `signInWithOtp` artık `shouldCreateUser: false` ile çağrılır. `supabase/config.toml`, yerel Auth'ta hem genel hem e-posta tabanlı kayıt oluşturmayı kapatır. Bu nedenle doğrudan public Auth isteği, mevcut olmayan bir e-posta için kullanıcı oluşturamaz.
+- `pnpm provision:allowed-user`, `ALLOWED_EMAIL` kullanıcısını yalnızca service-role anahtarı bulunan sunucu ortamında önceden oluşturur. Tek kullanıcı kuralını ihlal eden mevcut Auth kullanıcıları bulunursa komut durur. Barındırılan Supabase projesinde Dashboard'daki **Allow new users to sign up** ayarı da yayın öncesinde kapatılmalıdır; bu dış sağlayıcı ayarı repo tarafından otomatik taşınamaz.
+- `tests/integration/auth-callback-route.test.ts`, gerçek callback route modülünü Supabase sınırında mocklayarak kod değişimi, `getUser`, yetkisiz kullanıcı için sign-out ve izinli profil upsert bağlantısını kapsar.
+- Middleware artık `/login`, `/auth/callback`, `/_next/static`, `/_next/image` ve `/favicon.ico` hariç tüm uygulama yollarını korur. `/settings` için oturumsuz yönlendirme Playwright ile doğrulandı.
+
+### Fix round 1 doğrulaması
+
+```text
+pnpm lint
+pnpm test tests/unit/magic-link.test.ts tests/integration/auth-callback.test.ts tests/integration/auth-callback-route.test.ts  # 8 geçti
+pnpm test:e2e tests/e2e/auth-guard.spec.ts  # 3 geçti
+pnpm build
+```

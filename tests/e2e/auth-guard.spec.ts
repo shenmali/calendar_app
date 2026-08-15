@@ -7,6 +7,12 @@ test('oturumu olmayan ziyaretçiyi giriş sayfasına yönlendirir', async ({ pag
   await expect(page.getByRole('heading', { name: 'Takvime giriş' })).toBeVisible();
 });
 
+test('oturumu olmayan ziyaretçiyi diğer uygulama rotalarından da girişe yönlendirir', async ({ page }) => {
+  await page.goto('/settings');
+
+  await expect(page).toHaveURL(/\/login$/);
+});
+
 test('izin verilmeyen e-posta adresi için magic link istemez', async ({ page }) => {
   await page.goto('/login');
   await page.getByLabel('E-posta adresi').fill('other@example.com');

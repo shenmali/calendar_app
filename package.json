@@ -8,7 +8,8 @@
     "lint": "eslint .",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "provision:allowed-user": "node ./scripts/provision-allowed-user.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.4",
