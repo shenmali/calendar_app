@@ -131,7 +131,7 @@ to authenticated
 using ((select auth.uid()) = user_id);
 
 revoke all on table public.profiles, public.calendar_sources,
-  public.calendar_events, public.sync_runs from anon;
+  public.calendar_events, public.sync_runs from anon, authenticated;
 revoke all on table public.oauth_connections from anon, authenticated;
 
 grant select on table public.profiles, public.calendar_sources,
