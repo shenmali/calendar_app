@@ -1,0 +1,25 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  html {
+    font-family: Arial, Helvetica, sans-serif;
+  }
+
+  body {
+    min-height: 100vh;
+    margin: 0;
+    background: #f8fafc;
+    color: #0f172a;
+  }
+
+  :focus-visible {
+    outline: 3px solid #2563eb;
+    outline-offset: 3px;
+  }
+}
