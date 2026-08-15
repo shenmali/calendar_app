@@ -194,7 +194,7 @@ create unique index calendar_sources_remote_key
 on public.calendar_sources (connection_id, remote_calendar_id);
 ```
 
-Her tabloda RLS'i etkinleştir; `auth.uid() = user_id` koşuluyla select politikası oluştur. `oauth_connections` için istemciye doğrudan select politikası oluşturma; yalnızca service-role kullanan sunucu yolları token alanına erişsin.
+Her tabloda RLS'i etkinleştir; `auth.uid() = user_id` koşuluyla `TO authenticated` select politikası oluştur. Data API erişimi için `profiles`, `calendar_sources`, `calendar_events` ve `sync_runs` üzerinde yalnızca gerekli `authenticated` izinlerini açıkça `GRANT` et; `oauth_connections` için istemciye doğrudan `GRANT` veya select politikası oluşturma, yalnızca service-role kullanan sunucu yolları token alanına erişsin.
 
 - [ ] **Step 4: `isAllowedEmail` fonksiyonunu boşluk/küçük-büyük harf güvenli olacak şekilde uygula ve sunucu/tarayıcı Supabase istemcilerini tanımla.**
 
