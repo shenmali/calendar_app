@@ -2,6 +2,9 @@ export const oauthProviders = ['google', 'microsoft'] as const;
 
 export type OAuthProvider = (typeof oauthProviders)[number];
 
+export type { CalendarConnection, CalendarEvent, DateRange, ListEventsInput, NormalizeContext, RemoteCalendar, RemoteEvent } from '@/lib/calendar/types';
+import type { CalendarEvent, ListEventsInput, NormalizeContext, RemoteEvent } from '@/lib/calendar/types';
+
 export type ProviderConnection = {
   id: string;
   provider: OAuthProvider;
@@ -14,6 +17,11 @@ export type ProviderConnection = {
 
 export function isOAuthProvider(value: string): value is OAuthProvider {
   return oauthProviders.includes(value as OAuthProvider);
+}
+
+export interface CalendarProviderClient {
+  listEvents(input: ListEventsInput): Promise<RemoteEvent[]>;
+  normalizeEvent(input: RemoteEvent, context: NormalizeContext): CalendarEvent;
 }
 
 export const providerScopes: Record<OAuthProvider, string[]> = {

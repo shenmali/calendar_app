@@ -54,6 +54,7 @@ create table public.calendar_events (
   starts_at timestamptz not null,
   ends_at timestamptz not null,
   is_all_day boolean not null default false,
+  recurrence_rule text,
   status text not null default 'confirmed',
   attendees jsonb not null default '[]'::jsonb,
   remote_updated_at timestamptz,
