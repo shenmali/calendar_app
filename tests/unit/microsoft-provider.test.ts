@@ -16,8 +16,8 @@ test('normalizes timed recurring Microsoft events as ISO instants and RRULE', ()
   }, context);
 
   expect(event).toMatchObject({ provider: 'microsoft', isAllDay: false, startsAt: '2026-08-15T10:00:00.000Z', remoteEventId: 'm-42', status: 'confirmed' });
-  expect(event.recurrenceRule).toContain('RRULE:FREQ=WEEKLY');
-  expect(event.recurrenceRule).toContain('BYDAY=FR');
+  expect(event).toMatchObject({ recurrenceRule: expect.stringContaining('RRULE:FREQ=WEEKLY'), providerPayload: { id: 'm-42' } });
+  expect((event as { recurrenceRule: string }).recurrenceRule).toContain('BYDAY=FR');
 });
 
 test('lists Microsoft events only through the Graph calendarView endpoint with GET', async () => {
@@ -34,4 +34,23 @@ test('lists Microsoft events only through the Graph calendarView endpoint with G
 
   expect(requestMethods).toEqual(['GET']);
   expect(fetchImpl.mock.calls[0][0].toString()).toContain('/v1.0/me/calendars/calendar-1/calendarView');
+  expect(fetchImpl.mock.calls[0][1]?.headers).toMatchObject({ Prefer: expect.stringContaining('IdType="ImmutableId"') });
+});
+
+test('exhausts Graph calendarView pages with GET and immutable-id preference', async () => {
+  const methods: string[] = [];
+  const prefers: string[] = [];
+  const fetchImpl = vi.fn(async (url: RequestInfo | URL, init?: RequestInit) => {
+    methods.push(init?.method ?? 'GET');
+    prefers.push((init?.headers as Record<string, string>).Prefer);
+    return new Response(JSON.stringify(url.toString().includes('skiptoken=two')
+      ? { value: [{ id: 'm-2' }] }
+      : { value: [{ id: 'm-1' }], '@odata.nextLink': 'https://graph.microsoft.com/v1.0/me/calendars/calendar-1/calendarView?skiptoken=two' }), { status: 200 });
+  });
+
+  const events = await listMicrosoftEvents({ calendarId: 'calendar-1', accessToken: 'server-token', range: { start: '2026-08-15T00:00:00.000Z', end: '2026-08-16T00:00:00.000Z' }, fetchImpl });
+
+  expect(events.map((event) => event.id)).toEqual(['m-1', 'm-2']);
+  expect(methods).toEqual(['GET', 'GET']);
+  expect(prefers).toEqual([expect.stringContaining('IdType="ImmutableId"'), expect.stringContaining('IdType="ImmutableId"')]);
 });

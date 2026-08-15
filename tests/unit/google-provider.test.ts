@@ -27,8 +27,13 @@ test('preserves cancelled Google events and their RFC5545 recurrence rule', () =
     recurrence: ['RRULE:FREQ=WEEKLY;BYDAY=FR'],
   }, context);
 
-  expect(event.status).toBe('cancelled');
-  expect(event.recurrenceRule).toBe('RRULE:FREQ=WEEKLY;BYDAY=FR');
+  expect(event).toMatchObject({ status: 'cancelled', recurrenceRule: 'RRULE:FREQ=WEEKLY;BYDAY=FR', remoteSeriesId: null, providerPayload: { id: 'g-cancelled' } });
+});
+
+test('normalizes an id-only Google cancellation as a non-destructive tombstone', () => {
+  expect(normalizeGoogleEvent({ id: 'g-tombstone', status: 'cancelled' }, context)).toMatchObject({
+    kind: 'cancellation', remoteEventId: 'g-tombstone', remoteVersion: null, providerPayload: { id: 'g-tombstone' },
+  });
 });
 
 test('lists Google events through a GET-only Events API request', async () => {
@@ -45,4 +50,20 @@ test('lists Google events through a GET-only Events API request', async () => {
 
   expect(requestMethods).toEqual(['GET']);
   expect(fetchImpl.mock.calls[0][0].toString()).toContain('/calendar/v3/calendars/team%2Fcalendar/events');
+});
+
+test('exhausts Google event pages with GET requests', async () => {
+  const requestMethods: string[] = [];
+  const fetchImpl = vi.fn(async (url: RequestInfo | URL, init?: RequestInit) => {
+    requestMethods.push(init?.method ?? 'GET');
+    const pageToken = new URL(url.toString()).searchParams.get('pageToken');
+    return new Response(JSON.stringify(pageToken ? { items: [{ id: 'g-2', status: 'confirmed' }] } : {
+      items: [{ id: 'g-1', status: 'confirmed' }], nextPageToken: 'page-2',
+    }), { status: 200 });
+  });
+
+  const events = await listGoogleEvents({ calendarId: 'primary', accessToken: 'server-token', range: { start: '2026-08-15T00:00:00.000Z', end: '2026-08-16T00:00:00.000Z' }, fetchImpl });
+
+  expect(events.map((event) => event.id)).toEqual(['g-1', 'g-2']);
+  expect(requestMethods).toEqual(['GET', 'GET']);
 });

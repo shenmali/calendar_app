@@ -1,5 +1,5 @@
 import { decryptToken, encryptToken } from '@/lib/security/token-crypto';
-import type { CalendarConnection, CalendarEvent, DateRange, SyncResult } from '@/lib/calendar/types';
+import type { CalendarConnection, CalendarEvent, CalendarEventCancellation, DateRange, SyncResult } from '@/lib/calendar/types';
 import { googleCalendarProvider } from '@/lib/providers/google';
 import { microsoftCalendarProvider } from '@/lib/providers/microsoft';
 import { oauthClientCredentials } from '@/lib/providers/oauth';
@@ -10,11 +10,12 @@ export type WriteOutcome = 'imported' | 'updated';
 
 export interface SyncStore {
   loadConnection(connectionId: string): Promise<CalendarConnection | null>;
-  listSelectedSources(connectionId: string): Promise<SelectedSource[]>;
+  listSelectedSources(connection: CalendarConnection): Promise<SelectedSource[]>;
   createRun(connection: CalendarConnection, range: DateRange, startedAt: string): Promise<string>;
-  finishRun(runId: string, values: { status: 'success' | 'failed'; completedAt: string; errorMessage?: string }): Promise<void>;
+  finishRun(connection: CalendarConnection, runId: string, values: { status: 'success' | 'failed'; completedAt: string; errorMessage?: string }): Promise<void>;
   upsertEvent(event: CalendarEvent, sourceId: string): Promise<WriteOutcome>;
-  cancelMissing(connectionId: string, sourceId: string, remoteEventIds: string[], syncedAt: string): Promise<number>;
+  cancelMissing(connection: CalendarConnection, sourceId: string, remoteEventIds: string[], range: DateRange, syncedAt: string): Promise<number>;
+  cancelRemoteEvent(connection: CalendarConnection, sourceId: string, event: CalendarEventCancellation): Promise<boolean>;
   updateTokens(connection: CalendarConnection, values: { encryptedAccessToken: string; encryptedRefreshToken: string | null; tokenExpiresAt: string | null }): Promise<void>;
   markConnectionSynced(connection: CalendarConnection, syncedAt: string): Promise<void>;
 }
@@ -98,23 +99,27 @@ export function createSyncConnection({
       let removed = 0;
       const syncedAt = isoNow(now);
       const provider = providers[connection.provider];
-      for (const source of await store.listSelectedSources(connection.id)) {
+      for (const source of await store.listSelectedSources(connection)) {
         const remoteEvents = await provider.listEvents({ connection: effectiveConnection, calendarId: source.remoteCalendarId, range, accessToken });
         const remoteEventIds: string[] = [];
         for (const remoteEvent of remoteEvents) {
           const event = provider.normalizeEvent(remoteEvent, { connection: effectiveConnection, calendarId: source.remoteCalendarId, syncedAt });
           remoteEventIds.push(event.remoteEventId);
+          if ('kind' in event) {
+            if (await store.cancelRemoteEvent(connection, source.id, event)) updated += 1;
+            continue;
+          }
           if (await store.upsertEvent(event, source.id) === 'imported') imported += 1;
           else updated += 1;
         }
-        removed += await store.cancelMissing(connection.id, source.id, remoteEventIds, syncedAt);
+        removed += await store.cancelMissing(connection, source.id, remoteEventIds, range, syncedAt);
       }
       const completedAt = isoNow(now);
       await store.markConnectionSynced(connection, completedAt);
-      await store.finishRun(runId, { status: 'success', completedAt });
+      await store.finishRun(connection, runId, { status: 'success', completedAt });
       return { connectionId: connection.id, imported, updated, removed, completedAt };
     } catch (error) {
-      await store.finishRun(runId, { status: 'failed', completedAt: isoNow(now), errorMessage: asMessage(error) });
+      await store.finishRun(connection, runId, { status: 'failed', completedAt: isoNow(now), errorMessage: asMessage(error) });
       throw error;
     }
   };
@@ -140,9 +145,9 @@ function defaultStore(): SyncStore {
       ownerByConnection.set(connection.id, connection.userId);
       return connection;
     },
-    async listSelectedSources(connectionId) {
+    async listSelectedSources(connection) {
       const { data, error } = await (await client()).from('calendar_sources').select('id, remote_calendar_id')
-        .eq('connection_id', connectionId).eq('is_selected', true);
+        .eq('connection_id', connection.id).eq('user_id', connection.userId).eq('is_selected', true);
       if (error) throw new Error('Unable to load selected calendars');
       return (data ?? []).map((source) => ({ id: source.id, remoteCalendarId: source.remote_calendar_id }));
     },
@@ -154,10 +159,10 @@ function defaultStore(): SyncStore {
       if (error || !data) throw new Error('Unable to create sync run');
       return data.id;
     },
-    async finishRun(runId, values) {
+    async finishRun(connection, runId, values) {
       const { error } = await (await client()).from('sync_runs').update({
         status: values.status, completed_at: values.completedAt, error_message: values.errorMessage ?? null,
-      }).eq('id', runId);
+      }).eq('id', runId).eq('user_id', connection.userId);
       if (error) throw new Error('Unable to complete sync run');
     },
     async upsertEvent(event, sourceId) {
@@ -165,29 +170,40 @@ function defaultStore(): SyncStore {
       if (!userId) throw new Error('Calendar connection owner is unavailable');
       const table = (await client()).from('calendar_events');
       const { data: existing, error: lookupError } = await table.select('id')
-        .eq('connection_id', event.connectionId).eq('source_id', sourceId).eq('remote_event_id', event.remoteEventId).maybeSingle();
+        .eq('connection_id', event.connectionId).eq('source_id', sourceId).eq('user_id', userId).eq('remote_event_id', event.remoteEventId).maybeSingle();
       if (lookupError) throw new Error('Unable to look up calendar event');
       const { error } = await table.upsert({
         user_id: userId,
         connection_id: event.connectionId, source_id: sourceId, remote_event_id: event.remoteEventId, remote_version: event.remoteVersion,
         title: event.title, description: event.description, location: event.location, starts_at: event.startsAt, ends_at: event.endsAt,
-        is_all_day: event.isAllDay, recurrence_rule: event.recurrenceRule, status: event.status, remote_updated_at: event.updatedAt, last_synced_at: event.lastSyncedAt, sync_state: 'synced',
+        is_all_day: event.isAllDay, recurrence_rule: event.recurrenceRule, remote_series_id: event.remoteSeriesId, remote_original_start: event.remoteOriginalStart,
+        provider_payload: event.providerPayload, status: event.status, remote_updated_at: event.updatedAt, last_synced_at: event.lastSyncedAt, sync_state: 'synced',
       }, { onConflict: 'connection_id,remote_event_id' });
       if (error) throw new Error('Unable to upsert calendar event');
       return existing ? 'updated' : 'imported';
     },
-    async cancelMissing(connectionId, sourceId, remoteEventIds, syncedAt) {
+    async cancelMissing(connection, sourceId, remoteEventIds, range, syncedAt) {
       const { data, error } = await (await client()).from('calendar_events').select('id, remote_event_id, status')
-        .eq('connection_id', connectionId).eq('source_id', sourceId);
+        .eq('connection_id', connection.id).eq('source_id', sourceId).eq('user_id', connection.userId)
+        .lt('starts_at', range.end).gt('ends_at', range.start);
       if (error) throw new Error('Unable to load calendar events');
       const missing = (data ?? []).filter((event) => event.status !== 'cancelled' && !remoteEventIds.includes(event.remote_event_id));
       await Promise.all(missing.map(async (event) => {
         const { error: updateError } = await (await client()).from('calendar_events').update({
           status: 'cancelled', sync_state: 'cancelled', last_synced_at: syncedAt,
-        }).eq('id', event.id).eq('connection_id', connectionId).eq('source_id', sourceId);
+        }).eq('id', event.id).eq('connection_id', connection.id).eq('source_id', sourceId).eq('user_id', connection.userId);
         if (updateError) throw new Error('Unable to cancel missing calendar event');
       }));
       return missing.length;
+    },
+    async cancelRemoteEvent(connection, sourceId, event) {
+      const { data, error } = await (await client()).from('calendar_events').update({
+        status: 'cancelled', sync_state: 'cancelled', remote_version: event.remoteVersion,
+        provider_payload: event.providerPayload, last_synced_at: event.lastSyncedAt,
+      }).eq('connection_id', connection.id).eq('source_id', sourceId).eq('user_id', connection.userId)
+        .eq('remote_event_id', event.remoteEventId).select('id');
+      if (error) throw new Error('Unable to cancel remote calendar event');
+      return Boolean(data?.length);
     },
     async updateTokens(connection, values) {
       const { error } = await (await client()).from('oauth_connections').update({

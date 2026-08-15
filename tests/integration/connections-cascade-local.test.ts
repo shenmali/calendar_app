@@ -89,3 +89,27 @@ test.skipIf(!canRun)('local database consumes an OAuth state nonce only once und
   await expect(consumeOAuthState(input)).resolves.toEqual({ userId, provider: 'google' });
   await expect(consumeOAuthState(input)).rejects.toThrow('Invalid OAuth state');
 });
+
+test.skipIf(!canRun)('local database rejects a source whose owner differs from its connection owner', async () => {
+  const admin = createClient(url!, serviceRoleKey!, { auth: { autoRefreshToken: false, persistSession: false } });
+  const suffix = randomUUID();
+  const [{ data: ownerResult, error: ownerError }, { data: otherResult, error: otherError }] = await Promise.all([
+    admin.auth.admin.createUser({ email: `source-owner-${suffix}@example.test`, password: 'test-password-which-is-long-enough', email_confirm: true }),
+    admin.auth.admin.createUser({ email: `source-other-${suffix}@example.test`, password: 'test-password-which-is-long-enough', email_confirm: true }),
+  ]);
+  expect(ownerError).toBeNull();
+  expect(otherError).toBeNull();
+  createdUserIds.push(ownerResult.user!.id, otherResult.user!.id);
+
+  const { data: connection, error: connectionError } = await admin.from('oauth_connections').insert({
+    user_id: ownerResult.user!.id, provider: 'google', provider_account_id: `owner-${suffix}`, access_token_ciphertext: 'test-ciphertext',
+    scopes: ['https://www.googleapis.com/auth/calendar.readonly'],
+  }).select('id').single();
+  expect(connectionError).toBeNull();
+
+  const { error } = await admin.from('calendar_sources').insert({
+    user_id: otherResult.user!.id, connection_id: connection!.id, remote_calendar_id: `wrong-owner-${suffix}`, name: 'Wrong owner',
+  });
+  expect(error).not.toBeNull();
+  expect(error!.message).toContain('calendar source owner');
+});

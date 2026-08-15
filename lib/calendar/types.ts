@@ -19,10 +19,27 @@ export interface CalendarEvent {
   endsAt: string;
   isAllDay: boolean;
   recurrenceRule: string | null;
+  remoteSeriesId: string | null;
+  remoteOriginalStart: string | null;
+  providerPayload: unknown;
   status: 'confirmed' | 'cancelled';
   updatedAt: string;
   lastSyncedAt: string;
 }
+
+/** A provider cancellation that has no dates must not overwrite the stored event. */
+export interface CalendarEventCancellation {
+  kind: 'cancellation';
+  connectionId: string;
+  sourceCalendarId: string;
+  provider: CalendarProvider;
+  remoteEventId: string;
+  remoteVersion: string | null;
+  lastSyncedAt: string;
+  providerPayload: unknown;
+}
+
+export type NormalizedCalendarEvent = CalendarEvent | CalendarEventCancellation;
 
 export interface SyncResult {
   connectionId: string;

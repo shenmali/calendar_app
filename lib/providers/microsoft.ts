@@ -1,5 +1,5 @@
 import { isoDate, isoInstant, rangeToIsoInstants } from '@/lib/calendar/time';
-import type { CalendarEvent, NormalizeContext, RemoteEvent } from '@/lib/calendar/types';
+import type { NormalizeContext, NormalizedCalendarEvent, RemoteEvent } from '@/lib/calendar/types';
 import type { CalendarProviderClient } from '@/lib/providers/types';
 
 type Fetch = typeof fetch;
@@ -7,7 +7,7 @@ type MicrosoftDateTime = { dateTime?: string; timeZone?: string };
 type MicrosoftEvent = {
   id?: string; changeKey?: string; subject?: string; bodyPreview?: string; location?: { displayName?: string };
   isCancelled?: boolean; isAllDay?: boolean; start?: MicrosoftDateTime; end?: MicrosoftDateTime;
-  lastModifiedDateTime?: string; recurrence?: { pattern?: { type?: string; interval?: number; daysOfWeek?: string[]; dayOfMonth?: number; month?: number; index?: string }; range?: { type?: string; startDate?: string; endDate?: string; numberOfOccurrences?: number } };
+  lastModifiedDateTime?: string; seriesMasterId?: string; originalStart?: string; recurrence?: { pattern?: { type?: string; interval?: number; daysOfWeek?: string[]; dayOfMonth?: number; month?: number; index?: string }; range?: { type?: string; startDate?: string; endDate?: string; numberOfOccurrences?: number } };
 };
 
 const weekday: Record<string, string> = { sunday: 'SU', monday: 'MO', tuesday: 'TU', wednesday: 'WE', thursday: 'TH', friday: 'FR', saturday: 'SA' };
@@ -44,7 +44,7 @@ function rrule(event: MicrosoftEvent): string | null {
   return `RRULE:${parts.join(';')}`;
 }
 
-export function normalizeMicrosoftEvent(input: MicrosoftEvent | RemoteEvent, context: NormalizeContext): CalendarEvent {
+export function normalizeMicrosoftEvent(input: MicrosoftEvent | RemoteEvent, context: NormalizeContext): NormalizedCalendarEvent {
   const event = eventPayload(input);
   const id = requireString('payload' in input ? input.id : event.id, 'id');
   const start = event.start;
@@ -60,7 +60,8 @@ export function normalizeMicrosoftEvent(input: MicrosoftEvent | RemoteEvent, con
     title: event.subject ?? '', description: event.bodyPreview ?? null, location: event.location?.displayName ?? null,
     startsAt: isAllDay ? isoDate(requireString(start.dateTime, 'start.dateTime').slice(0, 10)) : isoInstant(requireString(start.dateTime, 'start.dateTime'), start.timeZone),
     endsAt: isAllDay ? isoDate(requireString(end.dateTime, 'end.dateTime').slice(0, 10)) : isoInstant(requireString(end.dateTime, 'end.dateTime'), end.timeZone),
-    isAllDay, recurrenceRule: rrule(event), status: event.isCancelled === true || ('payload' in input && input.status === 'cancelled') ? 'cancelled' : 'confirmed',
+    isAllDay, recurrenceRule: rrule(event), remoteSeriesId: event.seriesMasterId ?? null, remoteOriginalStart: event.originalStart ?? null, providerPayload: event,
+    status: event.isCancelled === true || ('payload' in input && input.status === 'cancelled') ? 'cancelled' : 'confirmed',
     updatedAt: event.lastModifiedDateTime ? isoInstant(event.lastModifiedDateTime) : syncedAt, lastSyncedAt: syncedAt,
   };
 }
@@ -69,18 +70,31 @@ export async function listMicrosoftEvents({
   calendarId, accessToken, range, fetchImpl = fetch,
 }: { calendarId: string; accessToken: string; range: import('@/lib/calendar/types').DateRange; fetchImpl?: Fetch }): Promise<RemoteEvent[]> {
   const normalizedRange = rangeToIsoInstants(range);
-  const url = new URL(`https://graph.microsoft.com/v1.0/me/calendars/${encodeURIComponent(calendarId)}/calendarView`);
-  url.search = new URLSearchParams({ startDateTime: normalizedRange.start, endDateTime: normalizedRange.end }).toString();
-  const response = await fetchImpl(url, {
-    method: 'GET', headers: { Authorization: `Bearer ${accessToken}`, Prefer: 'outlook.timezone="UTC"' }, cache: 'no-store',
-  });
-  if (!response.ok) throw new Error(`Microsoft event listing failed (${response.status})`);
-  const payload = await response.json() as { value?: unknown };
-  if (!Array.isArray(payload.value)) return [];
-  return payload.value.map((item) => {
-    const event = item as MicrosoftEvent;
-    return { id: requireString(event.id, 'id'), etag: event.changeKey ?? null, status: event.isCancelled ? 'cancelled' : 'confirmed', payload: event };
-  });
+  const events: RemoteEvent[] = [];
+  const seenLinks = new Set<string>();
+  let nextLink: string | undefined;
+  do {
+    const url = nextLink ?? (() => {
+      const initial = new URL(`https://graph.microsoft.com/v1.0/me/calendars/${encodeURIComponent(calendarId)}/calendarView`);
+      initial.search = new URLSearchParams({ startDateTime: normalizedRange.start, endDateTime: normalizedRange.end }).toString();
+      return initial.toString();
+    })();
+    const response = await fetchImpl(url, {
+      method: 'GET', headers: { Authorization: `Bearer ${accessToken}`, Prefer: 'outlook.timezone="UTC", IdType="ImmutableId"' }, cache: 'no-store',
+    });
+    if (!response.ok) throw new Error(`Microsoft event listing failed (${response.status})`);
+    const payload = await response.json() as { value?: unknown; '@odata.nextLink'?: unknown };
+    if (Array.isArray(payload.value)) {
+      events.push(...payload.value.map((item) => {
+        const event = item as MicrosoftEvent;
+        return { id: requireString(event.id, 'id'), etag: event.changeKey ?? null, status: event.isCancelled ? 'cancelled' : 'confirmed', payload: event };
+      }));
+    }
+    nextLink = typeof payload['@odata.nextLink'] === 'string' && payload['@odata.nextLink'] ? payload['@odata.nextLink'] : undefined;
+    if (nextLink && seenLinks.has(nextLink)) throw new Error('Microsoft event listing returned a repeated next link');
+    if (nextLink) seenLinks.add(nextLink);
+  } while (nextLink);
+  return events;
 }
 
 export const microsoftCalendarProvider: CalendarProviderClient = {
