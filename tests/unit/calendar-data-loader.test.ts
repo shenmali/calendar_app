@@ -2,7 +2,7 @@ import { expect, test } from 'vitest';
 
 import { createCalendarDataLoader } from '@/lib/calendar/data-loader';
 
-test('loads only the authenticated owner data and preserves duplicate remote calendar ids as distinct sources', async () => {
+test('loads owner data with each source selection state preserved for the display', async () => {
   const requestedFor: string[] = [];
   const loader = createCalendarDataLoader({
     listEvents: async (userId) => {
@@ -15,8 +15,8 @@ test('loads only the authenticated owner data and preserves duplicate remote cal
     listSources: async (userId) => {
       requestedFor.push(`sources:${userId}`);
       return [
-        { id: 'source-work', connectionId: 'connection-google', remoteCalendarId: 'primary', name: 'İş', color: '#0284c7' },
-        { id: 'source-personal', connectionId: 'connection-microsoft', remoteCalendarId: 'primary', name: 'Kişisel', color: '#7c3aed' },
+        { id: 'source-work', connectionId: 'connection-google', remoteCalendarId: 'primary', name: 'İş', color: '#0284c7', isSelected: true },
+        { id: 'source-personal', connectionId: 'connection-microsoft', remoteCalendarId: 'primary', name: 'Kişisel', color: '#7c3aed', isSelected: false },
       ];
     },
     listConnections: async (userId) => {
@@ -32,13 +32,13 @@ test('loads only the authenticated owner data and preserves duplicate remote cal
 
   expect(requestedFor.sort()).toEqual(['connections:owner-1', 'events:owner-1', 'sources:owner-1']);
   expect(result.events).toMatchObject([
-    { id: 'event-1', sourceId: 'source-work', sourceCalendarId: 'primary', provider: 'google', sourceName: 'İş' },
-    { id: 'event-2', sourceId: 'source-personal', sourceCalendarId: 'primary', provider: 'microsoft', sourceName: 'Kişisel' },
+    { id: 'event-1', sourceId: 'source-work', sourceCalendarId: 'primary', provider: 'google', sourceName: 'İş', sourceIsSelected: true },
+    { id: 'event-2', sourceId: 'source-personal', sourceCalendarId: 'primary', provider: 'microsoft', sourceName: 'Kişisel', sourceIsSelected: false },
   ]);
   expect(result.lastSyncedAt).toBe('2026-01-02T00:00:00.000Z');
 });
 
-test('does not expose or render orphaned rows when their owner-scoped source or connection is absent', async () => {
+test('does not expose orphaned rows when their owner-scoped source or connection is absent', async () => {
   const loader = createCalendarDataLoader({
     listEvents: async () => [{ id: 'event-1', connectionId: 'unknown-connection', sourceId: 'unknown-source', title: 'Görünmemeli', description: null, location: null, startsAt: '2026-01-15T07:00:00.000Z', endsAt: '2026-01-15T08:00:00.000Z', isAllDay: false, status: 'confirmed' as const }],
     listSources: async () => [],

@@ -13,8 +13,9 @@ import type { CalendarSourceFilter } from '@/components/calendar/source-filter';
 import type { CalendarView } from '@/components/calendar/view-switcher';
 import { WeekView } from '@/components/calendar/week-view';
 import { eventDateInIstanbul, groupEventsByDay, selectEvents } from '@/lib/calendar/event-selectors';
+import { revealSelectedDayDetail } from '@/lib/calendar/detail-focus';
 import { readManualSyncResult } from '@/lib/calendar/sync-refresh';
-import { reconcileSourceSelection } from '@/lib/calendar/source-selection';
+import { initialSelectedSourceIds, reconcileSourceSelection } from '@/lib/calendar/source-selection';
 import { buildYearMonths } from '@/lib/calendar/year-grid';
 import type { CalendarDisplayEvent } from '@/lib/calendar/types';
 
@@ -36,6 +37,7 @@ function sourceFilters(events: CalendarDisplayEvent[]): CalendarSourceFilter[] {
         id: event.sourceId,
         name: event.sourceName ?? event.sourceCalendarId,
         color: event.sourceColor ?? (event.provider === 'google' ? '#0284c7' : '#7c3aed'),
+        isSelected: event.sourceIsSelected,
       });
     }
   }
@@ -52,14 +54,16 @@ export function YearGrid({ events, initialYear = 2026, lastSyncedAt }: YearGridP
   const searchParams = useSearchParams();
   const [year, setYear] = useState(initialYear);
   const [selectedDate, setSelectedDate] = useState(`${initialYear}-01-15`);
+  const detailPanelRef = useRef<HTMLElement | null>(null);
+  const previousSelectedDate = useRef(selectedDate);
   const [connectionsOpen, setConnectionsOpen] = useState(false);
   const sources = useMemo(() => sourceFilters(events), [events]);
   const sourceIds = useMemo(() => sources.map((source) => source.id), [sources]);
   const previousSourceIds = useRef(sourceIds);
-  const [selectedSourceIds, setSelectedSourceIds] = useState(() => sources.map((source) => source.id));
+  const [selectedSourceIds, setSelectedSourceIds] = useState(() => initialSelectedSourceIds(sources));
   const [syncState, setSyncState] = useState<'idle' | 'syncing' | 'success' | 'partial' | 'error'>('idle');
   const months = useMemo(() => buildYearMonths(year, 1), [year]);
-  const filteredEvents = useMemo(() => selectEvents(events, { year, sourceIds: selectedSourceIds }), [events, selectedSourceIds, year]);
+  const filteredEvents = useMemo(() => selectEvents(events, { sourceIds: selectedSourceIds }), [events, selectedSourceIds]);
   const eventsByDay = useMemo(() => groupEventsByDay(filteredEvents), [filteredEvents]);
   const selectedEvents = eventsByDay.get(selectedDate) ?? [];
   const view = viewFromSearchParam(searchParams.get('view'));
@@ -76,6 +80,14 @@ export function YearGrid({ events, initialYear = 2026, lastSyncedAt }: YearGridP
       setSelectedSourceIds(nextSelection);
     }
   }, [selectedSourceIds, sourceIds]);
+
+  useEffect(() => {
+    const hasChanged = previousSelectedDate.current !== selectedDate;
+    previousSelectedDate.current = selectedDate;
+    if (hasChanged && window.matchMedia('(max-width: 767px)').matches && detailPanelRef.current) {
+      revealSelectedDayDetail(detailPanelRef.current);
+    }
+  }, [selectedDate]);
 
   function updateYear(nextYear: number) {
     setYear(nextYear);
@@ -108,6 +120,11 @@ export function YearGrid({ events, initialYear = 2026, lastSyncedAt }: YearGridP
     }
   }
 
+  function updateConnectionSourceSelection(sourceId: string, isSelected: boolean) {
+    setSelectedSourceIds((current) => isSelected ? [...new Set([...current, sourceId])] : current.filter((id) => id !== sourceId));
+    router.refresh();
+  }
+
   return (
     <main aria-label={`${year} yıllık takvim`} className="mx-auto max-w-[1600px] p-4 lg:p-6">
       <header className="mb-4">
@@ -138,10 +155,10 @@ export function YearGrid({ events, initialYear = 2026, lastSyncedAt }: YearGridP
         {view === 'month' ? <div className="order-2"><MonthView eventsByDay={eventsByDay} month={activeMonth} onSelectDate={setSelectedDate} selectedDate={selectedDate} /></div> : null}
         {view === 'week' ? <div className="order-2"><WeekView events={filteredEvents} onSelectDate={setSelectedDate} selectedDate={selectedDate} /></div> : null}
         {view === 'day' ? <div className="order-2"><DayView date={selectedDate} events={selectedEvents} /></div> : null}
-        {view !== 'day' ? <div className="order-1 xl:order-2"><EventDetailPanel date={selectedDate} events={selectedEvents} /></div> : null}
+        {view !== 'day' ? <div className="order-1 xl:order-2"><EventDetailPanel date={selectedDate} events={selectedEvents} panelRef={detailPanelRef} /></div> : null}
       </div>
-      {events.length === 0 ? <p className="mt-4 text-sm text-slate-500">Bağlı takvimlerde gösterilecek etkinlik yok.</p> : null}
-      <ConnectionsDialog onClose={() => setConnectionsOpen(false)} open={connectionsOpen} />
+      {filteredEvents.length === 0 ? <p className="mt-4 text-sm text-slate-500">Bağlı takvimlerde gösterilecek etkinlik yok.</p> : null}
+      <ConnectionsDialog onClose={() => setConnectionsOpen(false)} onSourceSelectionChange={updateConnectionSourceSelection} open={connectionsOpen} />
     </main>
   );
 }

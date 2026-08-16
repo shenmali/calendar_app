@@ -4,6 +4,10 @@ type SourceSelectionInput = {
   nextSourceIds: string[];
 };
 
+export function initialSelectedSourceIds(sources: Array<{ id: string; isSelected: boolean }>): string[] {
+  return sources.filter((source) => source.isSelected).map((source) => source.id);
+}
+
 /** Preserves user choices for known sources and selects only newly introduced source ids. */
 export function reconcileSourceSelection({
   previousSourceIds, selectedSourceIds, nextSourceIds,

@@ -19,6 +19,7 @@ type SourceRow = {
   remoteCalendarId: string;
   name: string;
   color: string | null;
+  isSelected: boolean;
 };
 
 type ConnectionRow = {
@@ -62,6 +63,7 @@ export function createCalendarDataLoader(dependencies: CalendarDataDependencies)
           sourceCalendarId: source.remoteCalendarId,
           sourceName: source.name,
           sourceColor: source.color,
+          sourceIsSelected: source.isSelected,
           provider: connection.provider,
         }];
       });

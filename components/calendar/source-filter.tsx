@@ -1,9 +1,12 @@
 'use client';
 
+import React from 'react';
+
 export type CalendarSourceFilter = {
   id: string;
   name: string;
   color: string;
+  isSelected: boolean;
 };
 
 type SourceFilterProps = {
@@ -26,7 +29,7 @@ export function SourceFilter({ sources, selectedSourceIds, onChange }: SourceFil
     <fieldset className="flex flex-wrap items-center gap-x-3 gap-y-2 border-0 p-0">
       <legend className="sr-only">Kaynak filtreleri</legend>
       {sources.map((source) => (
-        <label className="flex cursor-pointer items-center gap-1.5 text-xs font-medium text-slate-700" key={source.id}>
+        <label className="flex min-h-11 cursor-pointer items-center gap-1.5 text-xs font-medium text-slate-700" key={source.id}>
           <input
             checked={selectedSources.has(source.id)}
             className="h-4 w-4 rounded border-slate-300 text-sky-700 focus:ring-sky-600"

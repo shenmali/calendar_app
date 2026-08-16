@@ -1,6 +1,13 @@
 import { expect, test } from 'vitest';
 
-import { reconcileSourceSelection } from '@/lib/calendar/source-selection';
+import { initialSelectedSourceIds, reconcileSourceSelection } from '@/lib/calendar/source-selection';
+
+test('defaults calendar filtering to only persisted selected source UUIDs', () => {
+  expect(initialSelectedSourceIds([
+    { id: 'source-work', isSelected: true },
+    { id: 'source-personal', isSelected: false },
+  ])).toEqual(['source-work']);
+});
 
 test('auto-selects sources introduced by the first refresh while retaining selected initial sources', () => {
   expect(reconcileSourceSelection({

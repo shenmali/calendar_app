@@ -35,6 +35,7 @@ export type CalendarDisplayEvent = Pick<
   sourceId: string;
   sourceName?: string;
   sourceColor?: string | null;
+  sourceIsSelected: boolean;
 };
 
 /** A provider cancellation that has no dates must not overwrite the stored event. */

@@ -13,7 +13,7 @@ type ConnectionSource = {
   isSelected: boolean;
 };
 
-type ConnectionsDialogProps = { open: boolean; onClose: () => void };
+type ConnectionsDialogProps = { open: boolean; onClose: () => void; onSourceSelectionChange: (sourceId: string, isSelected: boolean) => void };
 
 function connectionState(connection: ProviderConnection): string | null {
   if (connection.tokenExpiresAt && new Date(connection.tokenExpiresAt).getTime() <= Date.now()) return 'İznin süresi dolmuş. Yeniden bağlanın.';
@@ -21,7 +21,7 @@ function connectionState(connection: ProviderConnection): string | null {
   return null;
 }
 
-export function ConnectionsDialog({ open, onClose }: ConnectionsDialogProps) {
+export function ConnectionsDialog({ open, onClose, onSourceSelectionChange }: ConnectionsDialogProps) {
   const [connections, setConnections] = useState<ProviderConnection[]>([]);
   const [sources, setSources] = useState<ConnectionSource[]>([]);
   const [message, setMessage] = useState<string | null>(null);
@@ -52,6 +52,7 @@ export function ConnectionsDialog({ open, onClose }: ConnectionsDialogProps) {
       return;
     }
     setSources((current) => current.map((item) => item.id === source.id ? { ...item, isSelected } : item));
+    onSourceSelectionChange(source.id, isSelected);
   }
 
   async function removeConnection(connectionId: string) {

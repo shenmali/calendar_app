@@ -1,4 +1,4 @@
-import { eventDateInIstanbul } from '@/lib/calendar/event-selectors';
+import { groupEventsByDay } from '@/lib/calendar/event-selectors';
 import { TURKISH_WEEKDAYS } from '@/lib/calendar/year-grid';
 import type { CalendarDisplayEvent } from '@/lib/calendar/types';
 
@@ -22,10 +22,11 @@ function weekDates(date: string): string[] {
 
 export function WeekView({ events, selectedDate, onSelectDate }: WeekViewProps) {
   const dates = weekDates(selectedDate);
+  const eventsByDay = groupEventsByDay(events);
   return (
     <section aria-label="Haftalık görünüm" className="grid gap-2 sm:grid-cols-2 lg:grid-cols-7" data-testid="week-view">
       {dates.map((date, index) => {
-        const dayEvents = events.filter((event) => eventDateInIstanbul(event) === date);
+        const dayEvents = eventsByDay.get(date) ?? [];
         return (
           <button aria-pressed={date === selectedDate} className="min-h-11 rounded-lg border border-slate-200 bg-white p-3 text-left hover:bg-sky-50" key={date} onClick={() => onSelectDate(date)} type="button">
             <span className="block text-xs font-semibold text-sky-700">{TURKISH_WEEKDAYS[index]}</span>

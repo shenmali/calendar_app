@@ -23,6 +23,7 @@ type AdminSourceRow = {
   remote_calendar_id: string;
   name: string;
   color: string | null;
+  is_selected: boolean;
 };
 
 type AdminConnectionRow = {
@@ -50,11 +51,11 @@ export async function loadCalendarDataForUser(userId: string): Promise<CalendarD
     async listSources(ownerId) {
       const { data, error } = await admin
         .from('calendar_sources')
-        .select('id, connection_id, remote_calendar_id, name, color')
+        .select('id, connection_id, remote_calendar_id, name, color, is_selected')
         .eq('user_id', ownerId);
       if (error) throw new Error('Unable to load calendar sources');
       return (data as AdminSourceRow[]).map((row) => ({
-        id: row.id, connectionId: row.connection_id, remoteCalendarId: row.remote_calendar_id, name: row.name, color: row.color,
+        id: row.id, connectionId: row.connection_id, remoteCalendarId: row.remote_calendar_id, name: row.name, color: row.color, isSelected: row.is_selected,
       }));
     },
     async listConnections(ownerId) {

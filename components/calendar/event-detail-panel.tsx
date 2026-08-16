@@ -1,3 +1,5 @@
+import type { Ref } from 'react';
+
 import { TURKISH_MONTHS } from '@/lib/calendar/year-grid';
 import { formatEventTimeRange } from '@/lib/calendar/event-display';
 import type { CalendarDisplayEvent } from '@/lib/calendar/types';
@@ -5,6 +7,7 @@ import type { CalendarDisplayEvent } from '@/lib/calendar/types';
 type EventDetailPanelProps = {
   date: string;
   events: CalendarDisplayEvent[];
+  panelRef?: Ref<HTMLElement>;
 };
 
 function dateHeading(date: string): string {
@@ -12,9 +15,9 @@ function dateHeading(date: string): string {
   return `${day} ${TURKISH_MONTHS[month - 1]} ${year}`;
 }
 
-export function EventDetailPanel({ date, events }: EventDetailPanelProps) {
+export function EventDetailPanel({ date, events, panelRef }: EventDetailPanelProps) {
   return (
-    <aside aria-label="Seçili gün ayrıntıları" className="h-fit rounded-xl border border-slate-200 bg-white p-4 shadow-sm xl:sticky xl:top-4">
+    <aside aria-label="Seçili gün ayrıntıları" aria-live="polite" className="h-fit rounded-xl border border-slate-200 bg-white p-4 shadow-sm xl:sticky xl:top-4" ref={panelRef} tabIndex={-1}>
       <p className="text-xs font-semibold uppercase tracking-wide text-sky-700">Seçili gün</p>
       <h2 className="mt-1 text-lg font-semibold text-slate-900">{dateHeading(date)}</h2>
       {events.length === 0 ? (
