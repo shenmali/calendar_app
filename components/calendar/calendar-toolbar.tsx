@@ -2,7 +2,9 @@
 
 import { SourceFilter, type CalendarSourceFilter } from '@/components/calendar/source-filter';
 import { ViewSwitcher, type CalendarView } from '@/components/calendar/view-switcher';
+import { ExportMenu } from '@/components/calendar/export-menu';
 import { formatSyncStatus } from '@/lib/calendar/event-display';
+import type { DateRange } from '@/lib/calendar/types';
 
 type CalendarToolbarProps = {
   year: number;
@@ -18,10 +20,11 @@ type CalendarToolbarProps = {
   view: CalendarView;
   onViewChange: (view: CalendarView) => void;
   onConnections: () => void;
+  exportRange: DateRange;
 };
 
 export function CalendarToolbar({
-  year, sources, selectedSourceIds, syncState, lastSyncedAt, onPreviousYear, onNextYear, onToday, onSourceChange, onRefresh, view, onViewChange, onConnections,
+  year, sources, selectedSourceIds, syncState, lastSyncedAt, onPreviousYear, onNextYear, onToday, onSourceChange, onRefresh, view, onViewChange, onConnections, exportRange,
 }: CalendarToolbarProps) {
   return (
     <nav aria-label="Takvim araçları" className="mb-5 rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
@@ -41,9 +44,7 @@ export function CalendarToolbar({
           <button className="calendar-control bg-sky-700 text-white hover:bg-sky-800 disabled:bg-sky-400" disabled={syncState === 'syncing'} onClick={onRefresh} type="button">
             {syncState === 'syncing' ? 'Yenileniyor…' : 'Yenile'}
           </button>
-          <button aria-disabled="true" className="calendar-control cursor-not-allowed text-slate-400" title="Dışa aktarma yakında kullanılabilir" type="button">
-            Dışa Aktar
-          </button>
+          <ExportMenu range={exportRange} sourceIds={selectedSourceIds} />
         </div>
       </div>
     </nav>

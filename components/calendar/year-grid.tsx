@@ -137,6 +137,7 @@ export function YearGrid({ events, initialYear = 2026, lastSyncedAt }: YearGridP
         <h1 className="mt-1 text-2xl font-semibold tracking-tight text-slate-900">{year} Yıllık Takvim</h1>
       </header>
       <CalendarToolbar
+        exportRange={{ start: `${year}-01-01`, end: `${year + 1}-01-01` }}
         lastSyncedAt={lastSyncedAt}
         onConnections={() => setConnectionsOpen(true)}
         onNextYear={() => updateYear(year + 1)}
