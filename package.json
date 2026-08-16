@@ -9,7 +9,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
-    "provision:allowed-user": "node ./scripts/provision-allowed-user.mjs"
+    "provision:allowed-user": "node ./scripts/provision-allowed-user.mjs",
+    "preflight:deployment": "node ./scripts/deployment-preflight.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.4",
