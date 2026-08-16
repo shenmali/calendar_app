@@ -10,6 +10,7 @@ export default defineConfig({
   },
   webServer: process.env.PLAYWRIGHT_BASE_URL ? undefined : {
     command: 'pnpm dev',
+    env: { ...process.env, ALLOWED_EMAIL: 'private-allowed@example.com' },
     url: 'http://127.0.0.1:3000',
     reuseExistingServer: !process.env.CI,
   },

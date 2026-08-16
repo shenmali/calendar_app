@@ -27,7 +27,7 @@ export interface CalendarProviderClient {
 
 export const providerScopes: Record<OAuthProvider, string[]> = {
   google: ['https://www.googleapis.com/auth/calendar.readonly'],
-  microsoft: ['openid', 'profile', 'email', 'offline_access', 'https://graph.microsoft.com/Calendars.Read'],
+  microsoft: ['offline_access', 'https://graph.microsoft.com/Calendars.Read'],
 };
 
 export const providerAuthorizationEndpoints: Record<OAuthProvider, string> = {

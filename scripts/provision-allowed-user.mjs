@@ -40,7 +40,7 @@ if (users.users.length === 0) {
     throw createError;
   }
 
-  console.log(`Provisioned ${allowedEmail}.`);
+  console.log('Allowed Auth user provisioned.');
 } else {
-  console.log(`${allowedEmail} is already provisioned.`);
+  console.log('Allowed Auth user is already provisioned.');
 }

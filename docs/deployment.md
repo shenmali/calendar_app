@@ -16,11 +16,14 @@ This runbook describes what must be configured before a deployment. It does not 
 | `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET` | Server-only configuration/secret | Microsoft OAuth client credentials. The ID is not intrinsically secret, but this app reads both server-side. |
 | `CRON_SECRET` | Server-only secret | Bearer secret accepted only by the scheduled sync route. |
 
-Generate a fresh encryption key in a secure terminal, then store its output directly in the secret manager:
+Generate a fresh encryption key and a separate cron secret in a secure terminal, then store each output directly in the secret manager:
 
 ```bash
 node -e "console.log(require('node:crypto').randomBytes(32).toString('base64'))"
+node -e "console.log(require('node:crypto').randomBytes(32).toString('base64url'))"
 ```
+
+`CRON_SECRET` must be at least 16 characters and contain at least three of uppercase letters, lowercase letters, digits, and symbols. The base64url generator produces an appropriately high-entropy secret; rerun it rather than inventing a memorable phrase.
 
 After loading the intended environment, run:
 
@@ -36,8 +39,15 @@ For CI, load the target environment into the command process (for example with V
 ## Supabase release sequence
 
 1. Create a separate staging/preview Supabase project or otherwise isolated data set. Do not grant preview deployments production service-role access.
-2. Back up the production database and record the currently deployed Vercel version before applying a production migration.
-3. Apply tracked migrations to staging first, then test login, source filtering, export, and a manual sync. Apply the same ordered migration set to production with `supabase db push` only after staging succeeds.
+2. Back up production and record both its exact Supabase project ref and the currently deployed Vercel version. Link explicitly to that ref; never rely on whichever project a local CLI session last selected:
+
+   ```bash
+   supabase link --project-ref <production-project-ref>
+   supabase migration list
+   supabase db push --dry-run
+   ```
+
+3. Confirm the migration list and dry-run target match the recorded production ref. Apply tracked migrations to staging first, then test login, source filtering, export, and manual sync. Re-link to the production ref, repeat `supabase migration list` and `supabase db push --dry-run`, and only then run `supabase db push` after explicit approval.
 4. In Supabase Dashboard, verify project health and run the Database Linter/Security Advisor. Resolve unexpected health, exposed-table, or RLS findings before release.
 5. Verify RLS using both the allowed user and a different account/test token: the owner may read only their rows and the other identity must read no calendar, source, connection, or sync data. `oauth_connections` remains service-role-only.
 
@@ -49,7 +59,7 @@ For previews, configure the preview site's exact `/auth/callback` URL in Supabas
 
 Set all listed values in Vercel rather than in source control. Production gets production Supabase, domain, OAuth credentials, and unique secrets. Preview gets isolated preview values; it must not inherit production service-role, encryption, or cron secrets. Public variables are visible to browser code and must never contain a secret.
 
-`vercel.json` schedules `GET /api/cron/sync` at `15 3 * * *`, which is 03:15 UTC every day. The route requires `Authorization: Bearer <CRON_SECRET>` and rejects missing or wrong values. Vercel Cron runs on production deployments, not previews. Do not call the route from a browser or place `CRON_SECRET` in a `NEXT_PUBLIC_` variable.
+`vercel.json` schedules `GET /api/cron/sync` at `15 3 * * *`, which is 03:15 UTC every day. The route requires `Authorization: Bearer <CRON_SECRET>` and rejects missing or wrong values. Vercel Cron runs on production deployments, not previews. Do not call the route from a browser or place `CRON_SECRET` in a `NEXT_PUBLIC_` variable. On Vercel Hobby, the daily invocation may occur anywhere within the configured hour (for this schedule, 03:15 through 04:14 UTC); do not use this plan when exact 03:15 execution is required. Higher plans run within the specified minute.
 
 Configure the custom production domain before setting `NEXT_PUBLIC_APP_URL`; it must be an absolute HTTPS origin. A preview needs its own exact HTTPS origin and matching provider callback registration if OAuth is exercised there.
 

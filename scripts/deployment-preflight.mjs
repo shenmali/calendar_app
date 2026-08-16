@@ -22,6 +22,13 @@ function isCanonicalBase64Key(value) {
   return key.length === 32 && key.toString('base64') === value;
 }
 
+function isStrongCronSecret(value) {
+  if (value.length < 16) return false;
+
+  return [/[A-Z]/, /[a-z]/, /\d/, /[^A-Za-z0-9]/]
+    .filter((characterClass) => characterClass.test(value)).length >= 3;
+}
+
 /**
  * Returns diagnostics containing only configuration names, never their values.
  */
@@ -33,6 +40,11 @@ export function validateDeploymentEnvironment(environment) {
   const encryptionKey = environment.TOKEN_ENCRYPTION_KEY;
   if (encryptionKey?.trim() && !isCanonicalBase64Key(encryptionKey)) {
     issues.push('TOKEN_ENCRYPTION_KEY must be a canonical base64-encoded 32-byte key');
+  }
+
+  const cronSecret = environment.CRON_SECRET;
+  if (cronSecret?.trim() && !isStrongCronSecret(cronSecret)) {
+    issues.push('CRON_SECRET must be at least 16 characters and include three character classes');
   }
 
   return issues;

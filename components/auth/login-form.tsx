@@ -1,16 +1,12 @@
 'use client';
 
 import { FormEvent, useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { isAllowedEmail } from '@/lib/security/allowed-email';
+
 import { createMagicLinkOptions } from '@/lib/auth/magic-link';
 import { createClient } from '@/lib/supabase/browser';
+import { Button } from '@/components/ui/button';
 
-type LoginFormProps = {
-  allowedEmail: string;
-};
-
-export function LoginForm({ allowedEmail }: LoginFormProps) {
+export function LoginForm() {
   const [email, setEmail] = useState('');
   const [message, setMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -18,11 +14,6 @@ export function LoginForm({ allowedEmail }: LoginFormProps) {
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const normalizedEmail = email.trim();
-
-    if (!allowedEmail || !isAllowedEmail(normalizedEmail, allowedEmail)) {
-      setMessage('Bu e-posta adresinin erişim izni yok.');
-      return;
-    }
 
     setIsSubmitting(true);
     setMessage(null);

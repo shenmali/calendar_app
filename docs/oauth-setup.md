@@ -9,9 +9,9 @@ The application constructs callback URLs from `NEXT_PUBLIC_APP_URL`, which must 
 | Provider | Production redirect URI | Exact scopes requested by the code |
 | --- | --- | --- |
 | Google | `https://<production-host>/api/connections/google/callback` | `https://www.googleapis.com/auth/calendar.readonly` |
-| Microsoft | `https://<production-host>/api/connections/microsoft/callback` | `openid`, `profile`, `email`, `offline_access`, `https://graph.microsoft.com/Calendars.Read` |
+| Microsoft | `https://<production-host>/api/connections/microsoft/callback` | `offline_access`, `https://graph.microsoft.com/Calendars.Read` |
 
-Both integrations use authorization-code flow with PKCE. Google requests offline access so it can obtain a refresh token; Microsoft requests `offline_access`. Do not add write scopes, such as Google calendar write access or Microsoft `Calendars.ReadWrite`.
+Both integrations use authorization-code flow with PKCE. Google requests offline access so it can obtain a refresh token; Microsoft explicitly requests `offline_access`, which the v2 authorization-code flow requires for refresh tokens. This application obtains the provider account from Microsoft Graph rather than an ID token, so it does not request the unnecessary OIDC identity scopes `openid`, `profile`, or `email`. Do not add write scopes, such as Google calendar write access or Microsoft `Calendars.ReadWrite`.
 
 OAuth providers match redirect URIs exactly. Vercel's changing preview URLs are not automatically valid. Either avoid OAuth connection testing on ephemeral previews or give the preview a stable HTTPS hostname, set its scoped `NEXT_PUBLIC_APP_URL`, and register these matching preview callbacks separately:
 
@@ -29,9 +29,9 @@ Never reuse production client secrets or token encryption keys in a preview envi
 
 ## Microsoft Entra ID
 
-1. Register an application in the intended Entra tenant. Choose **single tenant** when the calendar account is known to live in that tenant; use the account-type/audience deliberately if the allowed account is personal or cross-tenant. The code currently authorizes against the `common` endpoint, so tenant/account restrictions must agree with the chosen registration and be verified with the allowed account.
+1. This code uses the Microsoft `common` v2 endpoints for both authorization and token exchange. Register the app as **Accounts in any organizational directory and personal Microsoft accounts** (multitenant plus personal accounts), which is compatible with `common`. Do not select a single-tenant registration while retaining `common`; use a tenant-specific endpoint only as an intentional code-and-configuration change.
 2. Add the exact production Microsoft callback URI under Web redirect URIs. Add a separate stable preview callback only for controlled preview OAuth testing.
-3. Add delegated permissions only: `openid`, `profile`, `email`, `offline_access`, and Microsoft Graph `Calendars.Read`. Do not grant application permissions or `Calendars.ReadWrite`. Obtain/admin-consent only if tenant policy requires it for this allowed account.
+3. Add delegated permissions only: `offline_access` and Microsoft Graph `Calendars.Read`. Do not grant application permissions, OIDC profile scopes, or `Calendars.ReadWrite`. Obtain/admin-consent only if tenant policy requires it for this allowed account.
 4. Create a client secret, record its expiry and rotation owner, and store the resulting values as server-only `MICROSOFT_CLIENT_ID` and `MICROSOFT_CLIENT_SECRET` in the correct environment scope.
 
 ## Verification after configuration

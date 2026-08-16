@@ -27,6 +27,7 @@ vi.mock('@/lib/providers/oauth-state', () => ({
 
 import { GET as startGoogle } from '@/app/api/connections/google/start/route';
 import { GET as googleCallback } from '@/app/api/connections/google/callback/route';
+import { GET as startMicrosoft } from '@/app/api/connections/microsoft/start/route';
 
 const user = { id: '8cb947a5-7cd8-41f9-ab11-b294df96d8ca' };
 
@@ -35,6 +36,8 @@ beforeEach(() => {
   vi.stubEnv('NEXT_PUBLIC_APP_URL', 'https://calendar.example.com');
   vi.stubEnv('GOOGLE_CLIENT_ID', 'google-client');
   vi.stubEnv('GOOGLE_CLIENT_SECRET', 'google-secret');
+  vi.stubEnv('MICROSOFT_CLIENT_ID', 'microsoft-client');
+  vi.stubEnv('MICROSOFT_CLIENT_SECRET', 'microsoft-secret');
   vi.stubEnv('TOKEN_ENCRYPTION_KEY', Buffer.alloc(32, 5).toString('base64'));
   mocks.createServerClient.mockResolvedValue({ auth: { getUser: mocks.getUser } });
   mocks.getUser.mockResolvedValue({ data: { user }, error: null });
@@ -70,6 +73,16 @@ test('google start uses the exact readonly scope, PKCE, and app-url callback', a
     nonce: 'state-nonce', user_id: user.id, provider: 'google', expires_at: '2026-08-15T12:00:00.000Z',
   });
   expect(response.cookies.get('oauth_state_google')?.httpOnly).toBe(true);
+});
+
+test('microsoft start keeps common-account support while requesting only refresh and calendar-read scopes', async () => {
+  const response = await startMicrosoft(new NextRequest('https://calendar.example.com/api/connections/microsoft/start'));
+  const location = new URL(response.headers.get('location')!);
+
+  expect(location.origin + location.pathname).toBe('https://login.microsoftonline.com/common/oauth2/v2.0/authorize');
+  expect(location.searchParams.get('scope')).toBe('offline_access https://graph.microsoft.com/Calendars.Read');
+  expect(location.searchParams.get('redirect_uri')).toBe('https://calendar.example.com/api/connections/microsoft/callback');
+  expect(location.searchParams.get('code_challenge_method')).toBe('S256');
 });
 
 test('google callback encrypts access and refresh tokens before its server-only write', async () => {

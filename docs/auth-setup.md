@@ -1,26 +1,26 @@
-# Tek kullanıcılı magic-link kurulumu
+# Single-user magic-link setup
 
-`ALLOWED_EMAIL` sadece bir erken geri bildirim denetimi değildir. Bu uygulama, yalnızca önceden oluşturulmuş izinli Auth kullanıcısına magic link gönderecek şekilde yapılandırılmalıdır.
+`ALLOWED_EMAIL` is server-only configuration. The login page must never receive, render, or serialize it to client code. Authorization is enforced after sign-in by the server-side auth callback and middleware; the browser form intentionally does not disclose which address is allowed.
 
-## Yerel Supabase
+## Local Supabase
 
-Kaynak denetimine alınmış [supabase/config.toml](../supabase/config.toml), global ve e-posta tabanlı yeni kullanıcı kaydını kapatır. Değişiklikten sonra yerel Auth hizmetini yeniden başlatın:
+The tracked `supabase/config.toml` disables global and email sign-up. Restart local Auth after changing that configuration:
 
 ```bash
 supabase stop
 supabase start
 ```
 
-## Barındırılan Supabase projesi
+## Hosted Supabase project
 
-Supabase Dashboard → Authentication → Configuration içinde **Allow new users to sign up** ayarını kapatın. Bu dashboard ayarı, `config.toml` ile otomatik olarak uzaktaki projeye taşınmaz; yayın öncesi zorunlu adımdır.
+In Supabase Dashboard, Authentication → Configuration, disable **Allow new users to sign up**. This hosted setting is not propagated by `config.toml` and is mandatory before release.
 
-Ardından yalnızca izinli adres için server-only provisioning komutunu, service-role anahtarı bulunan güvenli bir ortamda çalıştırın:
+Provision only the allowed address from a secure server-only environment:
 
 ```bash
 pnpm provision:allowed-user
 ```
 
-Komut `NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` ve `ALLOWED_EMAIL` ister; service-role anahtarını istemciye yazmaz, loglamaz veya kaynak denetimine eklemez. Başka bir Auth kullanıcısı bulunursa güvenli biçimde durur. Gerekiyorsa bu kullanıcının temizliği Supabase Dashboard'dan ayrı bir operasyon olarak yapılmalıdır.
+The command requires `NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and `ALLOWED_EMAIL`. It neither prints the address nor exposes the service-role key, and it refuses to proceed if a different Auth user already exists. Resolve any unexpected account manually in Supabase Dashboard as a separate, audited operation.
 
-İstemcideki `signInWithOtp` çağrısı da `shouldCreateUser: false` kullanır. Bu nedenle doğrudan public Auth endpoint'ine yapılan bir istek bile mevcut olmayan bir e-posta için kullanıcı oluşturamaz; signup kapalıyken ve yalnızca bu kullanıcı önceden oluşturulmuşken diğer adreslere magic link gönderilemez.
+The browser requests a magic link with `shouldCreateUser: false`; hosted signup disablement prevents a new Auth account from being created by that request. Server-side callback and middleware checks then reject any session whose verified email does not match `ALLOWED_EMAIL`.

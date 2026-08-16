@@ -12,7 +12,7 @@ const validEnvironment = {
   GOOGLE_CLIENT_SECRET: 'google-client-secret',
   MICROSOFT_CLIENT_ID: 'microsoft-client-id',
   MICROSOFT_CLIENT_SECRET: 'microsoft-client-secret',
-  CRON_SECRET: 'cron-secret',
+  CRON_SECRET: 'Cron-secret-0123456789',
   NEXT_PUBLIC_APP_URL: 'https://calendar.example.com',
 };
 
@@ -43,4 +43,15 @@ test('rejects an encryption key that is not canonical base64 for exactly 32 byte
 
 test('accepts a complete deployment environment with a 32-byte encryption key', () => {
   expect(validateDeploymentEnvironment(validEnvironment)).toEqual([]);
+});
+
+test('rejects a trivial cron secret even when it has the minimum length', () => {
+  const issues = validateDeploymentEnvironment({
+    ...validEnvironment,
+    CRON_SECRET: 'aaaaaaaaaaaaaaaa',
+  });
+
+  expect(issues).toEqual([
+    'CRON_SECRET must be at least 16 characters and include three character classes',
+  ]);
 });

@@ -18,7 +18,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
         <h1 className="text-2xl font-semibold tracking-tight">Takvime giriş</h1>
         <p className="mt-2 text-sm text-slate-600">Erişim bağlantısını almak için izinli e-posta adresinizi girin.</p>
         {error ? <p className="mt-4 text-sm text-red-700">{errorMessages[error]}</p> : null}
-        <LoginForm allowedEmail={process.env.ALLOWED_EMAIL ?? ''} />
+        <LoginForm />
       </section>
     </main>
   );

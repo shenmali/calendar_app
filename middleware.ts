@@ -19,6 +19,13 @@ function redirectToLogin(
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({ request });
 
+  // This is deliberately an exact route match: the cron handler performs its
+  // own fail-closed bearer-token validation, while every other API route stays
+  // behind session middleware.
+  if (request.nextUrl.pathname === '/api/cron/sync') {
+    return response;
+  }
+
   if (request.nextUrl.pathname === '/login' || request.nextUrl.pathname === '/auth/callback') {
     return response;
   }
