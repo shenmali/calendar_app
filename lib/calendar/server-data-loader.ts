@@ -1,6 +1,7 @@
 import 'server-only';
 
 import { createCalendarDataLoader, type CalendarData } from '@/lib/calendar/data-loader';
+import { allDayDateInIstanbul } from '@/lib/calendar/event-selectors';
 import type { CalendarProvider } from '@/lib/calendar/types';
 import { createAdminClient } from '@/lib/supabase/admin';
 
@@ -45,7 +46,10 @@ export async function loadCalendarDataForUser(userId: string): Promise<CalendarD
       if (error) throw new Error('Unable to load calendar events');
       return (data as AdminEventRow[]).map((row) => ({
         id: row.id, connectionId: row.connection_id, sourceId: row.source_id, title: row.title, description: row.description,
-        location: row.location, startsAt: row.starts_at, endsAt: row.ends_at, isAllDay: row.is_all_day, status: row.status,
+        location: row.location,
+        startsAt: row.is_all_day ? allDayDateInIstanbul(row.starts_at) : row.starts_at,
+        endsAt: row.is_all_day ? allDayDateInIstanbul(row.ends_at) : row.ends_at,
+        isAllDay: row.is_all_day, status: row.status,
       }));
     },
     async listSources(ownerId) {

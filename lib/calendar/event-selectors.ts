@@ -29,8 +29,12 @@ function dateForInstant(value: string): string {
   return `${year}-${month}-${day}`;
 }
 
+export function allDayDateInIstanbul(value: string): string {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : dateForInstant(value);
+}
+
 export function eventDateInIstanbul(event: Pick<CalendarDisplayEvent, 'startsAt' | 'isAllDay'>): string {
-  if (event.isAllDay && /^\d{4}-\d{2}-\d{2}$/.test(event.startsAt)) return event.startsAt;
+  if (event.isAllDay) return allDayDateInIstanbul(event.startsAt);
   return dateForInstant(event.startsAt);
 }
 
@@ -39,7 +43,8 @@ export function eventDatesInIstanbul(event: Pick<CalendarDisplayEvent, 'startsAt
   const start = eventDateInIstanbul(event);
   let endExclusive: string;
   if (event.isAllDay) {
-    endExclusive = /^\d{4}-\d{2}-\d{2}$/.test(event.endsAt) && event.endsAt > start ? event.endsAt : addDays(start, 1);
+    const normalizedEnd = allDayDateInIstanbul(event.endsAt);
+    endExclusive = normalizedEnd > start ? normalizedEnd : addDays(start, 1);
   } else {
     const end = new Date(event.endsAt);
     const startsAt = new Date(event.startsAt);

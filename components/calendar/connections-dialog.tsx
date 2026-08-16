@@ -13,7 +13,12 @@ type ConnectionSource = {
   isSelected: boolean;
 };
 
-type ConnectionsDialogProps = { open: boolean; onClose: () => void; onSourceSelectionChange: (sourceId: string, isSelected: boolean) => void };
+type ConnectionsDialogProps = {
+  open: boolean;
+  onClose: () => void;
+  onSourceSelectionChange: (sourceId: string, isSelected: boolean) => void;
+  onConnectionDeleted: (connectionId: string) => void;
+};
 
 function connectionState(connection: ProviderConnection): string | null {
   if (connection.tokenExpiresAt && new Date(connection.tokenExpiresAt).getTime() <= Date.now()) return 'İznin süresi dolmuş. Yeniden bağlanın.';
@@ -21,7 +26,7 @@ function connectionState(connection: ProviderConnection): string | null {
   return null;
 }
 
-export function ConnectionsDialog({ open, onClose, onSourceSelectionChange }: ConnectionsDialogProps) {
+export function ConnectionsDialog({ open, onClose, onSourceSelectionChange, onConnectionDeleted }: ConnectionsDialogProps) {
   const [connections, setConnections] = useState<ProviderConnection[]>([]);
   const [sources, setSources] = useState<ConnectionSource[]>([]);
   const [message, setMessage] = useState<string | null>(null);
@@ -63,6 +68,7 @@ export function ConnectionsDialog({ open, onClose, onSourceSelectionChange }: Co
     }
     setConnections((current) => current.filter((connection) => connection.id !== connectionId));
     setSources((current) => current.filter((source) => source.connectionId !== connectionId));
+    onConnectionDeleted(connectionId);
     setMessage('Bağlantı kaldırıldı.');
   }
 

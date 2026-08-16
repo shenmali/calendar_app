@@ -8,6 +8,15 @@ export function initialSelectedSourceIds(sources: Array<{ id: string; isSelected
   return sources.filter((source) => source.isSelected).map((source) => source.id);
 }
 
+export function removeConnectionSourceIds(
+  selectedSourceIds: string[],
+  sources: Array<{ sourceId: string; connectionId: string }>,
+  connectionId: string,
+): string[] {
+  const removedSourceIds = new Set(sources.filter((source) => source.connectionId === connectionId).map((source) => source.sourceId));
+  return selectedSourceIds.filter((sourceId) => !removedSourceIds.has(sourceId));
+}
+
 /** Preserves user choices for known sources and selects only newly introduced source ids. */
 export function reconcileSourceSelection({
   previousSourceIds, selectedSourceIds, nextSourceIds,

@@ -14,8 +14,9 @@ import type { CalendarView } from '@/components/calendar/view-switcher';
 import { WeekView } from '@/components/calendar/week-view';
 import { eventDateInIstanbul, groupEventsByDay, selectEvents } from '@/lib/calendar/event-selectors';
 import { revealSelectedDayDetail } from '@/lib/calendar/detail-focus';
+import { selectCalendarDay } from '@/lib/calendar/day-selection';
 import { readManualSyncResult } from '@/lib/calendar/sync-refresh';
-import { initialSelectedSourceIds, reconcileSourceSelection } from '@/lib/calendar/source-selection';
+import { initialSelectedSourceIds, reconcileSourceSelection, removeConnectionSourceIds } from '@/lib/calendar/source-selection';
 import { buildYearMonths } from '@/lib/calendar/year-grid';
 import type { CalendarDisplayEvent } from '@/lib/calendar/types';
 
@@ -55,7 +56,6 @@ export function YearGrid({ events, initialYear = 2026, lastSyncedAt }: YearGridP
   const [year, setYear] = useState(initialYear);
   const [selectedDate, setSelectedDate] = useState(`${initialYear}-01-15`);
   const detailPanelRef = useRef<HTMLElement | null>(null);
-  const previousSelectedDate = useRef(selectedDate);
   const [connectionsOpen, setConnectionsOpen] = useState(false);
   const sources = useMemo(() => sourceFilters(events), [events]);
   const sourceIds = useMemo(() => sources.map((source) => source.id), [sources]);
@@ -80,14 +80,6 @@ export function YearGrid({ events, initialYear = 2026, lastSyncedAt }: YearGridP
       setSelectedSourceIds(nextSelection);
     }
   }, [selectedSourceIds, sourceIds]);
-
-  useEffect(() => {
-    const hasChanged = previousSelectedDate.current !== selectedDate;
-    previousSelectedDate.current = selectedDate;
-    if (hasChanged && window.matchMedia('(max-width: 767px)').matches && detailPanelRef.current) {
-      revealSelectedDayDetail(detailPanelRef.current);
-    }
-  }, [selectedDate]);
 
   function updateYear(nextYear: number) {
     setYear(nextYear);
@@ -125,6 +117,19 @@ export function YearGrid({ events, initialYear = 2026, lastSyncedAt }: YearGridP
     router.refresh();
   }
 
+  function removeConnectionFromView(connectionId: string) {
+    setSelectedSourceIds((current) => removeConnectionSourceIds(current, events, connectionId));
+    router.refresh();
+  }
+
+  function selectDate(date: string) {
+    selectCalendarDay(date, {
+      select: setSelectedDate,
+      shouldReveal: () => window.matchMedia('(max-width: 767px)').matches && detailPanelRef.current !== null,
+      reveal: () => { if (detailPanelRef.current) revealSelectedDayDetail(detailPanelRef.current); },
+    });
+  }
+
   return (
     <main aria-label={`${year} yıllık takvim`} className="mx-auto max-w-[1600px] p-4 lg:p-6">
       <header className="mb-4">
@@ -149,16 +154,16 @@ export function YearGrid({ events, initialYear = 2026, lastSyncedAt }: YearGridP
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_19rem]">
         {view === 'year' ? (
           <section aria-label="Yıl ayları" className="order-2 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3" data-testid="year-grid">
-            {months.map((month) => <MonthCard eventsByDay={eventsByDay} key={month.month} month={month} onSelectDate={setSelectedDate} selectedDate={selectedDate} />)}
+            {months.map((month) => <MonthCard eventsByDay={eventsByDay} key={month.month} month={month} onSelectDate={selectDate} selectedDate={selectedDate} />)}
           </section>
         ) : null}
-        {view === 'month' ? <div className="order-2"><MonthView eventsByDay={eventsByDay} month={activeMonth} onSelectDate={setSelectedDate} selectedDate={selectedDate} /></div> : null}
-        {view === 'week' ? <div className="order-2"><WeekView events={filteredEvents} onSelectDate={setSelectedDate} selectedDate={selectedDate} /></div> : null}
+        {view === 'month' ? <div className="order-2"><MonthView eventsByDay={eventsByDay} month={activeMonth} onSelectDate={selectDate} selectedDate={selectedDate} /></div> : null}
+        {view === 'week' ? <div className="order-2"><WeekView events={filteredEvents} onSelectDate={selectDate} selectedDate={selectedDate} /></div> : null}
         {view === 'day' ? <div className="order-2"><DayView date={selectedDate} events={selectedEvents} /></div> : null}
         {view !== 'day' ? <div className="order-1 xl:order-2"><EventDetailPanel date={selectedDate} events={selectedEvents} panelRef={detailPanelRef} /></div> : null}
       </div>
       {filteredEvents.length === 0 ? <p className="mt-4 text-sm text-slate-500">Bağlı takvimlerde gösterilecek etkinlik yok.</p> : null}
-      <ConnectionsDialog onClose={() => setConnectionsOpen(false)} onSourceSelectionChange={updateConnectionSourceSelection} open={connectionsOpen} />
+      <ConnectionsDialog onClose={() => setConnectionsOpen(false)} onConnectionDeleted={removeConnectionFromView} onSourceSelectionChange={updateConnectionSourceSelection} open={connectionsOpen} />
     </main>
   );
 }

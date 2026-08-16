@@ -4,6 +4,7 @@ import { expect, test } from 'vitest';
 
 import { SourceFilter } from '@/components/calendar/source-filter';
 import { revealSelectedDayDetail } from '@/lib/calendar/detail-focus';
+import { selectCalendarDay } from '@/lib/calendar/day-selection';
 
 test('makes source filter labels a 44px touch target', () => {
   const markup = renderToStaticMarkup(createElement(SourceFilter, {
@@ -23,4 +24,14 @@ test('scrolls and focuses the selected-day detail panel on mobile selection', ()
 
   revealSelectedDayDetail(panel);
   expect(calls).toEqual(['smooth:start', 'focus:true']);
+});
+
+test('reveals details even when tapping the already selected day', () => {
+  const calls: string[] = [];
+  selectCalendarDay('2026-01-15', {
+    reveal: () => calls.push('reveal'),
+    select: (date) => calls.push(date),
+    shouldReveal: () => true,
+  });
+  expect(calls).toEqual(['2026-01-15', 'reveal']);
 });

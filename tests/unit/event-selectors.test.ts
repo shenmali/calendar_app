@@ -40,6 +40,11 @@ test('uses a half-open Istanbul interval so an event ending at midnight is not s
   expect(eventDatesInIstanbul(midnightEnd)).toEqual(['2026-01-15']);
 });
 
+test('treats timestamp-backed all-day database bounds as Istanbul bare dates with an exclusive end', () => {
+  const databaseAllDay = { ...baseEvent, isAllDay: true, startsAt: '2026-01-14T21:00:00.000Z', endsAt: '2026-01-16T21:00:00.000Z' };
+  expect(eventDatesInIstanbul(databaseAllDay)).toEqual(['2026-01-15', '2026-01-16']);
+});
+
 test('keeps an adjacent-year event for a visible cross-year week range', () => {
   const newYearsDay = { ...baseEvent, startsAt: '2027-01-01T09:00:00.000Z', endsAt: '2027-01-01T10:00:00.000Z' };
   expect(selectEvents([newYearsDay], { year: 2026, range: { start: '2026-12-28', end: '2027-01-04' }, sourceIds: ['source-work'] }).map((event) => event.id)).toEqual(['event-1']);
