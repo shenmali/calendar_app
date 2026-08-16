@@ -12,7 +12,14 @@ export function createXlsx(events: ExportCalendarEvent[]): Uint8Array {
   for (let row = 2; row <= events.length + 1; row += 1) {
     for (const column of ['B', 'C']) {
       const cell = sheet[`${column}${row}`];
-      if (cell) cell.z = events[row - 2].isAllDay ? 'yyyy-mm-dd' : 'yyyy-mm-dd hh:mm';
+      if (cell) {
+        const value = cell.v;
+        if (value instanceof Date) {
+          cell.v = (value.getTime() - Date.UTC(1899, 11, 30)) / 86_400_000;
+          cell.t = 'n';
+        }
+        cell.z = events[row - 2].isAllDay ? 'yyyy-mm-dd' : 'yyyy-mm-dd hh:mm';
+      }
     }
   }
   for (const column of ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']) {

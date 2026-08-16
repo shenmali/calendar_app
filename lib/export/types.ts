@@ -3,6 +3,8 @@ import type { CalendarDisplayEvent } from '@/lib/calendar/types';
 /** A server-safe display event with the provider key retained solely for stable export IDs. */
 export type ExportCalendarEvent = CalendarDisplayEvent & {
   remoteEventId?: string;
+  /** Server-only sync metadata used for the RFC 5545 DTSTAMP. */
+  updatedAt?: string;
 };
 
 export const exportColumns = ['Başlık', 'Başlangıç', 'Bitiş', 'Tüm Gün', 'Konum', 'Kaynak', 'Takvim', 'Açıklama'] as const;

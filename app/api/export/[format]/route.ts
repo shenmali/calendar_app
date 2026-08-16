@@ -39,7 +39,7 @@ type SourceRow = { id: string; connection_id: string; remote_calendar_id: string
 type ConnectionRow = { id: string; provider: 'google' | 'microsoft' };
 type EventRow = {
   id: string; remote_event_id: string; connection_id: string; source_id: string; title: string; description: string | null; location: string | null;
-  starts_at: string; ends_at: string; is_all_day: boolean; status: 'confirmed' | 'cancelled';
+  starts_at: string; ends_at: string; updated_at: string | null; is_all_day: boolean; status: 'confirmed' | 'cancelled';
 };
 
 function unique(values: string[]): string[] {
@@ -140,7 +140,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ form
   const eventRows: EventRow[] = [];
   for (const sourceIdChunk of chunks([...sourceById.keys()])) {
     const eventQuery = admin.from('calendar_events')
-      .select('id, remote_event_id, connection_id, source_id, title, description, location, starts_at, ends_at, is_all_day, status')
+      .select('id, remote_event_id, connection_id, source_id, title, description, location, starts_at, ends_at, updated_at, is_all_day, status')
       .eq('user_id', user.id).eq('status', 'confirmed').in('source_id', sourceIdChunk)
       .lt('starts_at', range.end).gt('ends_at', range.start).order('starts_at', { ascending: true }).order('id', { ascending: true });
     for (let offset = 0; ; offset += pageSize) {
@@ -160,8 +160,10 @@ export async function GET(request: Request, { params }: { params: Promise<{ form
     if (!source || !provider || source.connection_id !== event.connection_id) return [];
     return [{
       id: event.id, remoteEventId: event.remote_event_id, connectionId: event.connection_id, sourceId: event.source_id, sourceCalendarId: source.remote_calendar_id,
-      provider, title: event.title, description: event.description, location: event.location, startsAt: event.starts_at, endsAt: event.ends_at,
-      isAllDay: event.is_all_day, status: event.status, sourceName: source.name, sourceIsSelected: true,
+      provider, title: event.title, description: event.description, location: event.location,
+      startsAt: event.is_all_day ? allDayDateInIstanbul(event.starts_at) : event.starts_at,
+      endsAt: event.is_all_day ? allDayDateInIstanbul(event.ends_at) : event.ends_at,
+      updatedAt: event.updated_at ?? undefined, isAllDay: event.is_all_day, status: event.status, sourceName: source.name, sourceIsSelected: true,
     }];
   });
   return responseFor(format, events);

@@ -19,9 +19,17 @@ test('creates a readable workbook with typed date and boolean cells', async () =
   expect(['A1', 'B1', 'C1', 'D1', 'E1', 'F1', 'G1', 'H1'].map((cell) => sheet?.[cell].v)).toEqual(['Başlık', 'Başlangıç', 'Bitiş', 'Tüm Gün', 'Konum', 'Kaynak', 'Takvim', 'Açıklama']);
   expect(sheet?.A2.v).toBe('Planlama');
   expect(sheet?.B2.v).toBeInstanceOf(Date);
-  expect((sheet?.B2.v as Date).getUTCHours()).toBe(10);
   expect(sheet?.D2.v).toBe(false);
   expect(sheet?.['!cols']?.[0].wpx ?? sheet?.['!cols']?.[0].wch).toBeGreaterThan(10);
+});
+
+test('writes an Istanbul wall-clock Excel serial that does not depend on the host timezone', async () => {
+  const { read } = await import('xlsx-js-style');
+  const workbook = read(createXlsx([event]), { type: 'array', cellDates: false });
+  const serial = workbook.Sheets.Etkinlikler?.B2.v;
+  const expected = (Date.UTC(2026, 7, 15, 10, 0, 0) - Date.UTC(1899, 11, 30)) / 86_400_000;
+
+  expect(serial).toBe(expected);
 });
 
 test('stores all-day bounds as Excel dates rather than text', async () => {

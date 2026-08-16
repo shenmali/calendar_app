@@ -95,7 +95,7 @@ test('filters all-day events with Istanbul-exclusive date boundaries', async () 
   const connections = query({ data: [{ id: connectionId, provider: 'google' }], error: null });
   const events = query({ data: [
     { id: 'old', remote_event_id: 'old', connection_id: connectionId, source_id: sourceId, title: 'Eski', description: null, location: null, starts_at: '2026-08-13T21:00:00.000Z', ends_at: '2026-08-14T21:00:00.000Z', is_all_day: true, status: 'confirmed' },
-    { id: 'today', remote_event_id: 'today', connection_id: connectionId, source_id: sourceId, title: 'Bugün', description: null, location: null, starts_at: '2026-08-14T21:00:00.000Z', ends_at: '2026-08-15T21:00:00.000Z', is_all_day: true, status: 'confirmed' },
+    { id: 'today', remote_event_id: 'today', connection_id: connectionId, source_id: sourceId, title: 'Bugün', description: null, location: null, starts_at: '2026-08-14T21:00:00.000Z', ends_at: '2026-08-15T21:00:00.000Z', updated_at: '2026-08-01T00:00:00.000Z', is_all_day: true, status: 'confirmed' },
   ], error: null });
   mocks.from.mockImplementation((table: string) => ({ select: vi.fn(() => table === 'calendar_sources' ? sources : table === 'oauth_connections' ? connections : events) }));
 
@@ -106,6 +106,7 @@ test('filters all-day events with Istanbul-exclusive date boundaries', async () 
 
   const csv = await response.text();
   expect(csv).toContain('Bugün');
+  expect(csv).toContain('Bugün,2026-08-15,2026-08-16,Evet');
   expect(csv).not.toContain('Eski');
 });
 
