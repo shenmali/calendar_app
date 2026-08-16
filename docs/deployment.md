@@ -38,8 +38,18 @@ For CI, load the target environment into the command process (for example with V
 
 ## Supabase release sequence
 
-1. Create a separate staging/preview Supabase project or otherwise isolated data set. Do not grant preview deployments production service-role access.
-2. Back up production and record both its exact Supabase project ref and the currently deployed Vercel version. Link explicitly to that ref; never rely on whichever project a local CLI session last selected:
+1. Create a separate staging Supabase project or otherwise isolated data set. Do not grant staging or preview deployments production service-role access.
+2. Run the staging sequence first. Link explicitly to the exact staging project ref, inspect the migration list, dry-run, and then apply only to staging:
+
+   ```bash
+   supabase link --project-ref <staging-project-ref>
+   supabase migration list
+   supabase db push --dry-run
+   supabase db push
+   ```
+
+3. Verify staging login, source filtering, export, manual sync, project health, and Database Linter/Security Advisor results. Verify RLS with the allowed user and a different account/test token: the owner may read only their rows and the other identity must read no calendar, source, connection, or sync data. `oauth_connections` remains service-role-only.
+4. Only after staging succeeds, back up production and record its exact Supabase project ref and current Vercel version. Re-link explicitly to production, inspect and dry-run before asking for approval:
 
    ```bash
    supabase link --project-ref <production-project-ref>
@@ -47,9 +57,7 @@ For CI, load the target environment into the command process (for example with V
    supabase db push --dry-run
    ```
 
-3. Confirm the migration list and dry-run target match the recorded production ref. Apply tracked migrations to staging first, then test login, source filtering, export, and manual sync. Re-link to the production ref, repeat `supabase migration list` and `supabase db push --dry-run`, and only then run `supabase db push` after explicit approval.
-4. In Supabase Dashboard, verify project health and run the Database Linter/Security Advisor. Resolve unexpected health, exposed-table, or RLS findings before release.
-5. Verify RLS using both the allowed user and a different account/test token: the owner may read only their rows and the other identity must read no calendar, source, connection, or sync data. `oauth_connections` remains service-role-only.
+5. Confirm the linked production ref, migration list, and dry-run target with the approver. Only after that explicit approval, run `supabase db push`. Never use a direct push against an implicitly selected project.
 
 Hosted Auth setup is separate from migrations: set the production Site URL to the canonical production URL, and allow the exact `https://<host>/auth/callback` magic-link redirect URL. Disable **Allow new users to sign up** before provisioning the single allowed user. In a secure, service-role-only environment run `pnpm provision:allowed-user`; it refuses to add a user when another Auth user already exists.
 
@@ -59,7 +67,7 @@ For previews, configure the preview site's exact `/auth/callback` URL in Supabas
 
 Set all listed values in Vercel rather than in source control. Production gets production Supabase, domain, OAuth credentials, and unique secrets. Preview gets isolated preview values; it must not inherit production service-role, encryption, or cron secrets. Public variables are visible to browser code and must never contain a secret.
 
-`vercel.json` schedules `GET /api/cron/sync` at `15 3 * * *`, which is 03:15 UTC every day. The route requires `Authorization: Bearer <CRON_SECRET>` and rejects missing or wrong values. Vercel Cron runs on production deployments, not previews. Do not call the route from a browser or place `CRON_SECRET` in a `NEXT_PUBLIC_` variable. On Vercel Hobby, the daily invocation may occur anywhere within the configured hour (for this schedule, 03:15 through 04:14 UTC); do not use this plan when exact 03:15 execution is required. Higher plans run within the specified minute.
+`vercel.json` schedules `GET /api/cron/sync` at `15 3 * * *`, which is 03:15 UTC every day. The route requires `Authorization: Bearer <CRON_SECRET>` and rejects missing or wrong values. Vercel Cron runs on production deployments, not previews. Do not call the route from a browser or place `CRON_SECRET` in a `NEXT_PUBLIC_` variable. On Vercel Hobby, the daily invocation may occur at any instant from 03:00:00 through 03:59:59 UTC for this schedule; do not use this plan when exact 03:15 execution is required. Higher plans run within the specified minute.
 
 Configure the custom production domain before setting `NEXT_PUBLIC_APP_URL`; it must be an absolute HTTPS origin. A preview needs its own exact HTTPS origin and matching provider callback registration if OAuth is exercised there.
 
