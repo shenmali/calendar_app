@@ -13,6 +13,7 @@ import type { CalendarSourceFilter } from '@/components/calendar/source-filter';
 import type { CalendarView } from '@/components/calendar/view-switcher';
 import { WeekView } from '@/components/calendar/week-view';
 import { eventDateInIstanbul, groupEventsByDay, selectEvents } from '@/lib/calendar/event-selectors';
+import { activeExportRange } from '@/lib/calendar/export-range';
 import { revealSelectedDayDetail } from '@/lib/calendar/detail-focus';
 import { selectCalendarDay } from '@/lib/calendar/day-selection';
 import { readManualSyncResult } from '@/lib/calendar/sync-refresh';
@@ -137,7 +138,7 @@ export function YearGrid({ events, initialYear = 2026, lastSyncedAt }: YearGridP
         <h1 className="mt-1 text-2xl font-semibold tracking-tight text-slate-900">{year} Yıllık Takvim</h1>
       </header>
       <CalendarToolbar
-        exportRange={{ start: `${year}-01-01`, end: `${year + 1}-01-01` }}
+        exportRange={activeExportRange(view, selectedDate, year)}
         lastSyncedAt={lastSyncedAt}
         onConnections={() => setConnectionsOpen(true)}
         onNextYear={() => updateYear(year + 1)}

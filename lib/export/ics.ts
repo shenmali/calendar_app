@@ -35,7 +35,8 @@ function utcDateTime(value: string): string {
 
 function eventLines(event: ExportCalendarEvent): string[] {
   const remoteEventId = event.remoteEventId ?? event.id;
-  const lines = ['BEGIN:VEVENT', `UID:${escapeText(`${event.provider}:${remoteEventId}`)}`];
+  const stamp = event.isAllDay ? `${allDayDateInIstanbul(event.startsAt).replace(/-/g, '')}T000000Z` : utcDateTime(event.startsAt);
+  const lines = ['BEGIN:VEVENT', `UID:${escapeText(`${event.provider}:${event.connectionId}:${remoteEventId}`)}`, `DTSTAMP:${stamp}`];
   if (event.isAllDay) {
     lines.push(`DTSTART;VALUE=DATE:${allDayDateInIstanbul(event.startsAt).replace(/-/g, '')}`);
     lines.push(`DTEND;VALUE=DATE:${allDayDateInIstanbul(event.endsAt).replace(/-/g, '')}`);

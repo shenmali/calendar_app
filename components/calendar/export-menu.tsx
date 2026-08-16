@@ -8,7 +8,7 @@ type ExportMenuProps = {
 };
 
 function exportHref(format: 'ics' | 'csv' | 'xlsx', range: DateRange, sourceIds: string[]): string {
-  const params = new URLSearchParams({ start: range.start, end: range.end });
+  const params = new URLSearchParams({ start: range.start, end: range.end, sourceSelection: 'selected' });
   for (const sourceId of sourceIds) params.append('sourceId', sourceId);
   return `/api/export/${format}?${params.toString()}`;
 }

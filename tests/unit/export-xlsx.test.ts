@@ -19,6 +19,7 @@ test('creates a readable workbook with typed date and boolean cells', async () =
   expect(['A1', 'B1', 'C1', 'D1', 'E1', 'F1', 'G1', 'H1'].map((cell) => sheet?.[cell].v)).toEqual(['Başlık', 'Başlangıç', 'Bitiş', 'Tüm Gün', 'Konum', 'Kaynak', 'Takvim', 'Açıklama']);
   expect(sheet?.A2.v).toBe('Planlama');
   expect(sheet?.B2.v).toBeInstanceOf(Date);
+  expect((sheet?.B2.v as Date).getUTCHours()).toBe(10);
   expect(sheet?.D2.v).toBe(false);
   expect(sheet?.['!cols']?.[0].wpx ?? sheet?.['!cols']?.[0].wch).toBeGreaterThan(10);
 });

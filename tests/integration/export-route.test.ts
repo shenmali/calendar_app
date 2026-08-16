@@ -54,6 +54,9 @@ test('exports only authenticated owner events matching repeated source filters w
   expect(events.eq).toHaveBeenCalledWith('status', 'confirmed');
   expect(events.in).toHaveBeenCalledWith('source_id', [sourceId]);
   expect(events.range).toHaveBeenCalledWith(0, 499);
+  expect(sources.order).toHaveBeenCalledWith('id', { ascending: true });
+  expect(connections.order).toHaveBeenCalledWith('id', { ascending: true });
+  expect(events.order).toHaveBeenCalledWith('id', { ascending: true });
 });
 
 test('rejects invalid date ranges and unknown formats without querying event data', async () => {
@@ -65,10 +68,59 @@ test('rejects invalid date ranges and unknown formats without querying event dat
     new NextRequest('https://calendar.example.com/api/export/pdf?start=2026-08-01&end=2026-09-01'),
     { params: Promise.resolve({ format: 'pdf' }) },
   );
+  const impossibleDate = await GET(
+    new NextRequest('https://calendar.example.com/api/export/csv?start=2026-02-30&end=2026-03-02'),
+    { params: Promise.resolve({ format: 'csv' }) },
+  );
 
   expect(malformed.status).toBe(400);
   expect(unknown.status).toBe(404);
+  expect(impossibleDate.status).toBe(400);
   expect(mocks.from).not.toHaveBeenCalled();
+});
+
+test('does not widen an explicitly empty source selection', async () => {
+  const response = await GET(
+    new NextRequest('https://calendar.example.com/api/export/csv?start=2026-08-01&end=2026-09-01&sourceSelection=selected'),
+    { params: Promise.resolve({ format: 'csv' }) },
+  );
+
+  expect(response.status).toBe(200);
+  expect(await response.text()).not.toContain('Planlama');
+  expect(mocks.from).not.toHaveBeenCalled();
+});
+
+test('filters all-day events with Istanbul-exclusive date boundaries', async () => {
+  const sources = query({ data: [{ id: sourceId, connection_id: connectionId, remote_calendar_id: 'primary', name: 'İş' }], error: null });
+  const connections = query({ data: [{ id: connectionId, provider: 'google' }], error: null });
+  const events = query({ data: [
+    { id: 'old', remote_event_id: 'old', connection_id: connectionId, source_id: sourceId, title: 'Eski', description: null, location: null, starts_at: '2026-08-13T21:00:00.000Z', ends_at: '2026-08-14T21:00:00.000Z', is_all_day: true, status: 'confirmed' },
+    { id: 'today', remote_event_id: 'today', connection_id: connectionId, source_id: sourceId, title: 'Bugün', description: null, location: null, starts_at: '2026-08-14T21:00:00.000Z', ends_at: '2026-08-15T21:00:00.000Z', is_all_day: true, status: 'confirmed' },
+  ], error: null });
+  mocks.from.mockImplementation((table: string) => ({ select: vi.fn(() => table === 'calendar_sources' ? sources : table === 'oauth_connections' ? connections : events) }));
+
+  const response = await GET(
+    new NextRequest(`https://calendar.example.com/api/export/csv?start=2026-08-15&end=2026-08-16&sourceId=${sourceId}`),
+    { params: Promise.resolve({ format: 'csv' }) },
+  );
+
+  const csv = await response.text();
+  expect(csv).toContain('Bugün');
+  expect(csv).not.toContain('Eski');
+});
+
+test('chunks repeated source filters before querying', async () => {
+  const requestedIds = Array.from({ length: 101 }, (_, index) => `00000000-0000-4000-8000-${String(index).padStart(12, '0')}`);
+  const sources = query({ data: [], error: null });
+  mocks.from.mockReturnValue({ select: vi.fn(() => sources) });
+
+  const response = await GET(
+    new NextRequest(`https://calendar.example.com/api/export/csv?start=2026-08-01&end=2026-09-01&${requestedIds.map((id) => `sourceId=${id}`).join('&')}`),
+    { params: Promise.resolve({ format: 'csv' }) },
+  );
+
+  expect(response.status).toBe(200);
+  expect(sources.in.mock.calls.every(([, ids]) => (ids as string[]).length <= 100)).toBe(true);
 });
 
 test('paginates selected sources so an export is not silently capped', async () => {

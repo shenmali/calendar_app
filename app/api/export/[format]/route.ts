@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
+import { allDayDateInIstanbul } from '@/lib/calendar/event-selectors';
 import { isoInstant } from '@/lib/calendar/time';
 import { createCsv } from '@/lib/export/csv';
 import { createIcs } from '@/lib/export/ics';
@@ -12,12 +13,22 @@ import { createClient } from '@/lib/supabase/server';
 const formats = ['ics', 'csv', 'xlsx'] as const;
 type ExportFormat = (typeof formats)[number];
 const pageSize = 500;
+const filterChunkSize = 100;
+
+function isRealDate(value: string): boolean {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!match) return false;
+  const [, year, month, day] = match;
+  const date = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day)));
+  return date.getUTCFullYear() === Number(year) && date.getUTCMonth() === Number(month) - 1 && date.getUTCDate() === Number(day);
+}
 
 const filtersSchema = z.object({
-  start: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  end: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  start: z.string().refine(isRealDate),
+  end: z.string().refine(isRealDate),
   connectionId: z.array(z.string().uuid()).default([]),
   sourceId: z.array(z.string().uuid()).default([]),
+  sourceSelection: z.literal('selected').optional(),
 }).superRefine((value, context) => {
   if (value.end <= value.start) context.addIssue({ code: 'custom', path: ['end'], message: 'End must follow start' });
   const span = Date.parse(`${value.end}T00:00:00Z`) - Date.parse(`${value.start}T00:00:00Z`);
@@ -33,6 +44,22 @@ type EventRow = {
 
 function unique(values: string[]): string[] {
   return [...new Set(values)];
+}
+
+function chunks<T>(values: T[]): T[][] {
+  if (!values.length) return [[]];
+  const result: T[][] = [];
+  for (let index = 0; index < values.length; index += filterChunkSize) result.push(values.slice(index, index + filterChunkSize));
+  return result;
+}
+
+function overlapsExportRange(event: EventRow, filters: { start: string; end: string }, range: { start: string; end: string }): boolean {
+  if (event.is_all_day) {
+    const start = allDayDateInIstanbul(event.starts_at);
+    const end = allDayDateInIstanbul(event.ends_at);
+    return start < filters.end && end > filters.start;
+  }
+  return event.starts_at < range.end && event.ends_at > range.start;
 }
 
 function isFormat(value: string): value is ExportFormat {
@@ -55,9 +82,10 @@ export async function GET(request: Request, { params }: { params: Promise<{ form
   const { format } = await params;
   if (!isFormat(format)) return new NextResponse(null, { status: 404 });
 
+  const searchParams = new URL(request.url).searchParams;
   const parsed = filtersSchema.safeParse({
-    start: new URL(request.url).searchParams.get('start'), end: new URL(request.url).searchParams.get('end'),
-    connectionId: new URL(request.url).searchParams.getAll('connectionId'), sourceId: new URL(request.url).searchParams.getAll('sourceId'),
+    start: searchParams.get('start'), end: searchParams.get('end'),
+    connectionId: searchParams.getAll('connectionId'), sourceId: searchParams.getAll('sourceId'), sourceSelection: searchParams.get('sourceSelection') ?? undefined,
   });
   if (!parsed.success) return NextResponse.json({ error: 'Invalid export filters' }, { status: 400 });
 
@@ -66,35 +94,43 @@ export async function GET(request: Request, { params }: { params: Promise<{ form
   if (userError || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const filters = { ...parsed.data, connectionId: unique(parsed.data.connectionId), sourceId: unique(parsed.data.sourceId) };
+  if (filters.sourceSelection === 'selected' && !filters.sourceId.length) return responseFor(format, []);
   const admin = createAdminClient();
-  let sourceQuery = admin.from('calendar_sources').select('id, connection_id, remote_calendar_id, name').eq('user_id', user.id);
-  if (filters.sourceId.length) sourceQuery = sourceQuery.in('id', filters.sourceId);
-  else sourceQuery = sourceQuery.eq('is_selected', true);
-  if (filters.connectionId.length) sourceQuery = sourceQuery.in('connection_id', filters.connectionId);
   const sources: SourceRow[] = [];
-  for (let offset = 0; ; offset += pageSize) {
-    const { data, error } = await sourceQuery.range(offset, offset + pageSize - 1);
-    if (error) return NextResponse.json({ error: 'Unable to load export sources' }, { status: 500 });
-    const page = data as SourceRow[];
-    sources.push(...page);
-    if (page.length < pageSize) break;
+  for (const sourceIds of chunks(filters.sourceId)) {
+    for (const connectionIds of chunks(filters.connectionId)) {
+      let sourceQuery = admin.from('calendar_sources').select('id, connection_id, remote_calendar_id, name').eq('user_id', user.id);
+      if (sourceIds.length) sourceQuery = sourceQuery.in('id', sourceIds);
+      if (connectionIds.length) sourceQuery = sourceQuery.in('connection_id', connectionIds);
+      sourceQuery = sourceQuery.order('id', { ascending: true });
+      for (let offset = 0; ; offset += pageSize) {
+        const { data, error } = await sourceQuery.range(offset, offset + pageSize - 1);
+        if (error) return NextResponse.json({ error: 'Unable to load export sources' }, { status: 500 });
+        const page = data as SourceRow[];
+        sources.push(...page);
+        if (page.length < pageSize) break;
+      }
+    }
   }
-  if (!sources.length) return responseFor(format, []);
+  const uniqueSources = [...new Map(sources.map((source) => [source.id, source])).values()].sort((left, right) => left.id.localeCompare(right.id));
+  if (!uniqueSources.length) return responseFor(format, []);
 
-  const connectionIds = unique(sources.map((source) => source.connection_id));
-  const connectionQuery = admin.from('oauth_connections').select('id, provider').eq('user_id', user.id).in('id', connectionIds);
+  const connectionIds = unique(uniqueSources.map((source) => source.connection_id));
   const connections: ConnectionRow[] = [];
-  for (let offset = 0; ; offset += pageSize) {
-    const { data, error } = await connectionQuery.range(offset, offset + pageSize - 1);
-    if (error) return NextResponse.json({ error: 'Unable to load export connections' }, { status: 500 });
-    const page = data as ConnectionRow[];
-    connections.push(...page);
-    if (page.length < pageSize) break;
+  for (const connectionIdChunk of chunks(connectionIds)) {
+    const connectionQuery = admin.from('oauth_connections').select('id, provider').eq('user_id', user.id).in('id', connectionIdChunk).order('id', { ascending: true });
+    for (let offset = 0; ; offset += pageSize) {
+      const { data, error } = await connectionQuery.range(offset, offset + pageSize - 1);
+      if (error) return NextResponse.json({ error: 'Unable to load export connections' }, { status: 500 });
+      const page = data as ConnectionRow[];
+      connections.push(...page);
+      if (page.length < pageSize) break;
+    }
   }
   const providers = new Map(connections.flatMap((connection) => (
     connection.provider === 'google' || connection.provider === 'microsoft' ? [[connection.id, connection.provider] as const] : []
   )));
-  const sourceById = new Map(sources.filter((source) => providers.has(source.connection_id)).map((source) => [source.id, source]));
+  const sourceById = new Map(uniqueSources.filter((source) => providers.has(source.connection_id)).map((source) => [source.id, source]));
   if (!sourceById.size) return responseFor(format, []);
 
   const range = {
@@ -102,18 +138,23 @@ export async function GET(request: Request, { params }: { params: Promise<{ form
     end: isoInstant(`${filters.end}T00:00:00`, 'Europe/Istanbul'),
   };
   const eventRows: EventRow[] = [];
-  for (let offset = 0; ; offset += pageSize) {
-    const { data, error } = await admin.from('calendar_events')
+  for (const sourceIdChunk of chunks([...sourceById.keys()])) {
+    const eventQuery = admin.from('calendar_events')
       .select('id, remote_event_id, connection_id, source_id, title, description, location, starts_at, ends_at, is_all_day, status')
-      .eq('user_id', user.id).eq('status', 'confirmed').in('source_id', [...sourceById.keys()])
-      .lt('starts_at', range.end).gt('ends_at', range.start).order('starts_at', { ascending: true }).range(offset, offset + pageSize - 1);
-    if (error) return NextResponse.json({ error: 'Unable to load export events' }, { status: 500 });
-    const page = data as EventRow[];
-    eventRows.push(...page);
-    if (page.length < pageSize) break;
+      .eq('user_id', user.id).eq('status', 'confirmed').in('source_id', sourceIdChunk)
+      .lt('starts_at', range.end).gt('ends_at', range.start).order('starts_at', { ascending: true }).order('id', { ascending: true });
+    for (let offset = 0; ; offset += pageSize) {
+      const { data, error } = await eventQuery.range(offset, offset + pageSize - 1);
+      if (error) return NextResponse.json({ error: 'Unable to load export events' }, { status: 500 });
+      const page = data as EventRow[];
+      eventRows.push(...page);
+      if (page.length < pageSize) break;
+    }
   }
 
-  const events: ExportCalendarEvent[] = eventRows.flatMap((event) => {
+  const events: ExportCalendarEvent[] = eventRows.filter((event) => overlapsExportRange(event, filters, range)).sort((left, right) => (
+    left.starts_at.localeCompare(right.starts_at) || left.id.localeCompare(right.id)
+  )).flatMap((event) => {
     const source = sourceById.get(event.source_id);
     const provider = providers.get(event.connection_id);
     if (!source || !provider || source.connection_id !== event.connection_id) return [];
