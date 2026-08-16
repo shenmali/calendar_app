@@ -24,3 +24,20 @@ export function formatLastSyncedAt(value: string | null): string {
   const parts = formatParts(value, dateTimeFormatter);
   return `Son eşitleme: ${parts.day}.${parts.month}.${parts.year} ${parts.hour}:${parts.minute}`;
 }
+
+const syncMessages = {
+  idle: null,
+  syncing: 'Eşitleniyor…',
+  success: 'Eşitleme tamamlandı',
+  partial: 'Bazı takvimler eşitlenemedi',
+  error: 'Eşitleme başlatılamadı',
+} as const;
+
+export function formatSyncStatus(
+  state: keyof typeof syncMessages,
+  lastSyncedAt: string | null,
+): string {
+  const timestamp = formatLastSyncedAt(lastSyncedAt);
+  const message = syncMessages[state];
+  return message ? `${message}. ${timestamp}` : timestamp;
+}

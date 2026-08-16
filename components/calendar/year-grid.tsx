@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 import { CalendarToolbar } from '@/components/calendar/calendar-toolbar';
@@ -9,6 +9,7 @@ import { MonthCard } from '@/components/calendar/month-card';
 import type { CalendarSourceFilter } from '@/components/calendar/source-filter';
 import { eventDateInIstanbul, groupEventsByDay, selectEvents } from '@/lib/calendar/event-selectors';
 import { readManualSyncResult } from '@/lib/calendar/sync-refresh';
+import { reconcileSourceSelection } from '@/lib/calendar/source-selection';
 import { buildYearMonths } from '@/lib/calendar/year-grid';
 import type { CalendarDisplayEvent } from '@/lib/calendar/types';
 
@@ -41,12 +42,26 @@ export function YearGrid({ events, initialYear = 2026, lastSyncedAt }: YearGridP
   const [year, setYear] = useState(initialYear);
   const [selectedDate, setSelectedDate] = useState(`${initialYear}-01-15`);
   const sources = useMemo(() => sourceFilters(events), [events]);
+  const sourceIds = useMemo(() => sources.map((source) => source.id), [sources]);
+  const previousSourceIds = useRef(sourceIds);
   const [selectedSourceIds, setSelectedSourceIds] = useState(() => sources.map((source) => source.id));
   const [syncState, setSyncState] = useState<'idle' | 'syncing' | 'success' | 'partial' | 'error'>('idle');
   const months = useMemo(() => buildYearMonths(year, 1), [year]);
   const filteredEvents = useMemo(() => selectEvents(events, { year, sourceIds: selectedSourceIds }), [events, selectedSourceIds, year]);
   const eventsByDay = useMemo(() => groupEventsByDay(filteredEvents), [filteredEvents]);
   const selectedEvents = eventsByDay.get(selectedDate) ?? [];
+
+  useEffect(() => {
+    const nextSelection = reconcileSourceSelection({
+      previousSourceIds: previousSourceIds.current,
+      selectedSourceIds,
+      nextSourceIds: sourceIds,
+    });
+    previousSourceIds.current = sourceIds;
+    if (nextSelection.length !== selectedSourceIds.length || nextSelection.some((sourceId, index) => sourceId !== selectedSourceIds[index])) {
+      setSelectedSourceIds(nextSelection);
+    }
+  }, [selectedSourceIds, sourceIds]);
 
   function updateYear(nextYear: number) {
     setYear(nextYear);

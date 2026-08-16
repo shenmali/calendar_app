@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest';
 
-import { formatEventTimeRange } from '@/lib/calendar/event-display';
+import { formatEventTimeRange, formatSyncStatus } from '@/lib/calendar/event-display';
 
 test('formats the full Istanbul-local start and end range for a timed event', () => {
   expect(formatEventTimeRange({
@@ -10,4 +10,8 @@ test('formats the full Istanbul-local start and end range for a timed event', ()
 
 test('keeps all-day events explicit', () => {
   expect(formatEventTimeRange({ startsAt: '2026-01-15', endsAt: '2026-01-16', isAllDay: true })).toBe('Tüm gün');
+});
+
+test('keeps the persisted sync timestamp visible beside a temporary result state', () => {
+  expect(formatSyncStatus('partial', '2026-01-02T03:04:00.000Z')).toBe('Bazı takvimler eşitlenemedi. Son eşitleme: 02.01.2026 06:04');
 });

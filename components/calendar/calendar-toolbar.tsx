@@ -1,7 +1,7 @@
 'use client';
 
 import { SourceFilter, type CalendarSourceFilter } from '@/components/calendar/source-filter';
-import { formatLastSyncedAt } from '@/lib/calendar/event-display';
+import { formatSyncStatus } from '@/lib/calendar/event-display';
 
 type CalendarToolbarProps = {
   year: number;
@@ -15,14 +15,6 @@ type CalendarToolbarProps = {
   onSourceChange: (sourceIds: string[]) => void;
   onRefresh: () => void;
 };
-
-const syncLabels = {
-  idle: null,
-  syncing: 'Eşitleniyor…',
-  success: 'Eşitleme tamamlandı',
-  partial: 'Bazı takvimler eşitlenemedi',
-  error: 'Eşitleme başlatılamadı',
-} as const;
 
 export function CalendarToolbar({
   year, sources, selectedSourceIds, syncState, lastSyncedAt, onPreviousYear, onNextYear, onToday, onSourceChange, onRefresh,
@@ -39,7 +31,7 @@ export function CalendarToolbar({
         <span className="hidden h-6 w-px bg-slate-200 sm:block" aria-hidden="true" />
         <SourceFilter sources={sources} selectedSourceIds={selectedSourceIds} onChange={onSourceChange} />
         <div className="ml-auto flex items-center gap-2">
-          <span aria-live="polite" className="hidden text-xs text-slate-500 lg:inline">{syncLabels[syncState] ?? formatLastSyncedAt(lastSyncedAt)}</span>
+          <span aria-live="polite" className="hidden text-xs text-slate-500 lg:inline">{formatSyncStatus(syncState, lastSyncedAt)}</span>
           <button className="calendar-control bg-sky-700 text-white hover:bg-sky-800 disabled:bg-sky-400" disabled={syncState === 'syncing'} onClick={onRefresh} type="button">
             {syncState === 'syncing' ? 'Yenileniyor…' : 'Yenile'}
           </button>

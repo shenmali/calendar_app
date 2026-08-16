@@ -19,7 +19,10 @@ export async function readManualSyncResult(response: Response): Promise<SyncRefr
   try {
     const payload = await response.json() as SyncPayload;
     if (!isAcceptedSummary(payload)) return { state: 'error', shouldRefresh: false };
-    return { state: payload.summary.connections.failed > 0 ? 'partial' : 'success', shouldRefresh: true };
+    const { succeeded, failed } = payload.summary.connections;
+    if (failed > 0 && succeeded === 0) return { state: 'error', shouldRefresh: false };
+    if (failed > 0) return { state: 'partial', shouldRefresh: true };
+    return { state: 'success', shouldRefresh: true };
   } catch {
     return { state: 'error', shouldRefresh: false };
   }
