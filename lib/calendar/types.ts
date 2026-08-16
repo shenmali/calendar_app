@@ -27,6 +27,15 @@ export interface CalendarEvent {
   lastSyncedAt: string;
 }
 
+/** The small, token-free event shape permitted to cross the server/client boundary. */
+export type CalendarDisplayEvent = Pick<
+  CalendarEvent,
+  'id' | 'connectionId' | 'sourceCalendarId' | 'provider' | 'title' | 'description' | 'location' | 'startsAt' | 'endsAt' | 'isAllDay' | 'status'
+> & {
+  sourceName?: string;
+  sourceColor?: string | null;
+};
+
 /** A provider cancellation that has no dates must not overwrite the stored event. */
 export interface CalendarEventCancellation {
   kind: 'cancellation';
