@@ -1,4 +1,4 @@
-import { timingSafeEqual } from 'node:crypto';
+import { createHash, timingSafeEqual } from 'node:crypto';
 
 import { NextResponse } from 'next/server';
 
@@ -19,9 +19,8 @@ type CronSyncDependencies = {
 function authorizedCronRequest(request: Request, secret: string | undefined): boolean {
   const authorization = request.headers.get('authorization');
   if (!secret || !authorization) return false;
-  const expected = Buffer.from(`Bearer ${secret}`);
-  const received = Buffer.from(authorization);
-  return expected.length === received.length && timingSafeEqual(expected, received);
+  const digest = (value: string) => createHash('sha256').update(value).digest();
+  return timingSafeEqual(digest(`Bearer ${secret}`), digest(authorization));
 }
 
 function addSummary(target: SyncSummary, source: SyncSummary) {
@@ -36,10 +35,9 @@ function addSummary(target: SyncSummary, source: SyncSummary) {
 export function createManualSyncHandler(dependencies: ManualSyncDependencies) {
   return async function POST(_request: Request) {
     void _request;
-    const userId = await dependencies.currentUserId();
-    if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
     try {
+      const userId = await dependencies.currentUserId();
+      if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
       const result = await dependencies.synchronizeUser(userId, await dependencies.listActiveConnections(userId));
       if (result.status === 'locked') return NextResponse.json({ error: 'Sync already in progress' }, { status: 409 });
       return NextResponse.json({ summary: result.summary }, { status: 202 });
