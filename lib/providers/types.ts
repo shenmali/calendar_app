@@ -11,6 +11,7 @@ export type ProviderConnection = {
   providerAccountId: string;
   scopes: string[];
   tokenExpiresAt: string | null;
+  isActive: boolean;
   lastSyncedAt: string | null;
   createdAt: string;
 };

@@ -1,12 +1,17 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 
 import { CalendarToolbar } from '@/components/calendar/calendar-toolbar';
+import { ConnectionsDialog } from '@/components/calendar/connections-dialog';
+import { DayView } from '@/components/calendar/day-view';
 import { EventDetailPanel } from '@/components/calendar/event-detail-panel';
+import { MonthView } from '@/components/calendar/month-view';
 import { MonthCard } from '@/components/calendar/month-card';
 import type { CalendarSourceFilter } from '@/components/calendar/source-filter';
+import type { CalendarView } from '@/components/calendar/view-switcher';
+import { WeekView } from '@/components/calendar/week-view';
 import { eventDateInIstanbul, groupEventsByDay, selectEvents } from '@/lib/calendar/event-selectors';
 import { readManualSyncResult } from '@/lib/calendar/sync-refresh';
 import { reconcileSourceSelection } from '@/lib/calendar/source-selection';
@@ -37,10 +42,17 @@ function sourceFilters(events: CalendarDisplayEvent[]): CalendarSourceFilter[] {
   return [...sources.values()];
 }
 
+function viewFromSearchParam(value: string | null): CalendarView {
+  return value === 'month' || value === 'week' || value === 'day' ? value : 'year';
+}
+
 export function YearGrid({ events, initialYear = 2026, lastSyncedAt }: YearGridProps) {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [year, setYear] = useState(initialYear);
   const [selectedDate, setSelectedDate] = useState(`${initialYear}-01-15`);
+  const [connectionsOpen, setConnectionsOpen] = useState(false);
   const sources = useMemo(() => sourceFilters(events), [events]);
   const sourceIds = useMemo(() => sources.map((source) => source.id), [sources]);
   const previousSourceIds = useRef(sourceIds);
@@ -50,6 +62,8 @@ export function YearGrid({ events, initialYear = 2026, lastSyncedAt }: YearGridP
   const filteredEvents = useMemo(() => selectEvents(events, { year, sourceIds: selectedSourceIds }), [events, selectedSourceIds, year]);
   const eventsByDay = useMemo(() => groupEventsByDay(filteredEvents), [filteredEvents]);
   const selectedEvents = eventsByDay.get(selectedDate) ?? [];
+  const view = viewFromSearchParam(searchParams.get('view'));
+  const activeMonth = months[Number(selectedDate.slice(5, 7)) - 1];
 
   useEffect(() => {
     const nextSelection = reconcileSourceSelection({
@@ -74,6 +88,14 @@ export function YearGrid({ events, initialYear = 2026, lastSyncedAt }: YearGridP
     setSelectedDate(today);
   }
 
+  function updateView(nextView: CalendarView) {
+    const params = new URLSearchParams(searchParams.toString());
+    if (nextView === 'year') params.delete('view');
+    else params.set('view', nextView);
+    const query = params.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname);
+  }
+
   async function refreshCalendar() {
     setSyncState('syncing');
     try {
@@ -93,24 +115,33 @@ export function YearGrid({ events, initialYear = 2026, lastSyncedAt }: YearGridP
         <h1 className="mt-1 text-2xl font-semibold tracking-tight text-slate-900">{year} Yıllık Takvim</h1>
       </header>
       <CalendarToolbar
+        lastSyncedAt={lastSyncedAt}
+        onConnections={() => setConnectionsOpen(true)}
         onNextYear={() => updateYear(year + 1)}
         onPreviousYear={() => updateYear(year - 1)}
         onRefresh={refreshCalendar}
         onSourceChange={setSelectedSourceIds}
         onToday={selectToday}
+        onViewChange={updateView}
         selectedSourceIds={selectedSourceIds}
-        lastSyncedAt={lastSyncedAt}
         sources={sources}
         syncState={syncState}
+        view={view}
         year={year}
       />
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_19rem]">
-        <section aria-label="Yıl ayları" className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3" data-testid="year-grid">
-          {months.map((month) => <MonthCard eventsByDay={eventsByDay} key={month.month} month={month} onSelectDate={setSelectedDate} selectedDate={selectedDate} />)}
-        </section>
-        <EventDetailPanel date={selectedDate} events={selectedEvents} />
+        {view === 'year' ? (
+          <section aria-label="Yıl ayları" className="order-2 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3" data-testid="year-grid">
+            {months.map((month) => <MonthCard eventsByDay={eventsByDay} key={month.month} month={month} onSelectDate={setSelectedDate} selectedDate={selectedDate} />)}
+          </section>
+        ) : null}
+        {view === 'month' ? <div className="order-2"><MonthView eventsByDay={eventsByDay} month={activeMonth} onSelectDate={setSelectedDate} selectedDate={selectedDate} /></div> : null}
+        {view === 'week' ? <div className="order-2"><WeekView events={filteredEvents} onSelectDate={setSelectedDate} selectedDate={selectedDate} /></div> : null}
+        {view === 'day' ? <div className="order-2"><DayView date={selectedDate} events={selectedEvents} /></div> : null}
+        {view !== 'day' ? <div className="order-1 xl:order-2"><EventDetailPanel date={selectedDate} events={selectedEvents} /></div> : null}
       </div>
       {events.length === 0 ? <p className="mt-4 text-sm text-slate-500">Bağlı takvimlerde gösterilecek etkinlik yok.</p> : null}
+      <ConnectionsDialog onClose={() => setConnectionsOpen(false)} open={connectionsOpen} />
     </main>
   );
 }

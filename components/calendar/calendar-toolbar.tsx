@@ -1,6 +1,7 @@
 'use client';
 
 import { SourceFilter, type CalendarSourceFilter } from '@/components/calendar/source-filter';
+import { ViewSwitcher, type CalendarView } from '@/components/calendar/view-switcher';
 import { formatSyncStatus } from '@/lib/calendar/event-display';
 
 type CalendarToolbarProps = {
@@ -14,10 +15,13 @@ type CalendarToolbarProps = {
   onToday: () => void;
   onSourceChange: (sourceIds: string[]) => void;
   onRefresh: () => void;
+  view: CalendarView;
+  onViewChange: (view: CalendarView) => void;
+  onConnections: () => void;
 };
 
 export function CalendarToolbar({
-  year, sources, selectedSourceIds, syncState, lastSyncedAt, onPreviousYear, onNextYear, onToday, onSourceChange, onRefresh,
+  year, sources, selectedSourceIds, syncState, lastSyncedAt, onPreviousYear, onNextYear, onToday, onSourceChange, onRefresh, view, onViewChange, onConnections,
 }: CalendarToolbarProps) {
   return (
     <nav aria-label="Takvim araçları" className="mb-5 rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
@@ -28,6 +32,8 @@ export function CalendarToolbar({
           <button className="calendar-control" onClick={onNextYear} type="button" aria-label="Sonraki yıl">›</button>
         </div>
         <button className="calendar-control" onClick={onToday} type="button">Bugün</button>
+        <ViewSwitcher onChange={onViewChange} view={view} />
+        <button className="calendar-control" onClick={onConnections} type="button">Bağlantılar</button>
         <span className="hidden h-6 w-px bg-slate-200 sm:block" aria-hidden="true" />
         <SourceFilter sources={sources} selectedSourceIds={selectedSourceIds} onChange={onSourceChange} />
         <div className="ml-auto flex items-center gap-2">

@@ -26,6 +26,6 @@
 
 @layer components {
   .calendar-control {
-    @apply inline-flex min-h-9 items-center justify-center rounded-md border border-slate-300 bg-white px-2.5 text-sm font-medium text-slate-700 shadow-sm transition hover:border-slate-400 hover:bg-slate-50 focus-visible:outline-sky-600;
+    @apply inline-flex min-h-11 items-center justify-center rounded-md border border-slate-300 bg-white px-2.5 text-sm font-medium text-slate-700 shadow-sm transition hover:border-slate-400 hover:bg-slate-50 focus-visible:outline-sky-600;
   }
 }
