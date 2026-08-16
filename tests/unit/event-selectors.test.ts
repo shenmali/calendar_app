@@ -1,28 +1,21 @@
 import { expect, test } from 'vitest';
 
 import { eventsForDay, selectEvents } from '@/lib/calendar/event-selectors';
-import type { CalendarEvent } from '@/lib/calendar/types';
+import type { CalendarDisplayEvent } from '@/lib/calendar/types';
 
-const baseEvent: CalendarEvent = {
+const baseEvent: CalendarDisplayEvent = {
   id: 'event-1',
   connectionId: 'google-connection',
+  sourceId: 'source-work',
   sourceCalendarId: 'work',
   provider: 'google',
-  remoteEventId: 'remote-1',
-  remoteVersion: null,
   title: 'Planlama',
   description: null,
   location: null,
   startsAt: '2026-01-15T09:00:00.000Z',
   endsAt: '2026-01-15T10:00:00.000Z',
   isAllDay: false,
-  recurrenceRule: null,
-  remoteSeriesId: null,
-  remoteOriginalStart: null,
-  providerPayload: null,
   status: 'confirmed',
-  updatedAt: '2026-01-01T00:00:00.000Z',
-  lastSyncedAt: '2026-01-01T00:00:00.000Z',
 };
 
 test('shows only the first two events in a day cell and counts the rest', () => {
@@ -41,7 +34,7 @@ test('shows only the first two events in a day cell and counts the rest', () => 
 test('filters events by year, range, connection, and source calendar', () => {
   const events = [
     baseEvent,
-    { ...baseEvent, id: 'event-2', connectionId: 'microsoft-connection', sourceCalendarId: 'home', startsAt: '2026-06-04T08:00:00.000Z' },
+    { ...baseEvent, id: 'event-2', connectionId: 'microsoft-connection', sourceId: 'source-home', sourceCalendarId: 'home', startsAt: '2026-06-04T08:00:00.000Z' },
     { ...baseEvent, id: 'event-3', startsAt: '2027-01-15T09:00:00.000Z' },
   ];
 
@@ -49,13 +42,22 @@ test('filters events by year, range, connection, and source calendar', () => {
     year: 2026,
     range: { start: '2026-01-01', end: '2026-03-01' },
     connectionIds: ['google-connection'],
-    sourceCalendarIds: ['work'],
+    sourceIds: ['source-work'],
   }).map((event) => event.id)).toEqual(['event-1']);
 });
 
 test('shows no events when every source filter is cleared', () => {
   expect(selectEvents([baseEvent], {
     year: 2026,
-    sourceCalendarIds: [],
+    sourceIds: [],
   })).toEqual([]);
+});
+
+test('keeps sources with the same remote calendar id independently filterable', () => {
+  const duplicateRemoteId = { ...baseEvent, id: 'event-2', sourceId: 'source-personal', connectionId: 'microsoft-connection' };
+
+  expect(selectEvents([baseEvent, duplicateRemoteId], {
+    year: 2026,
+    sourceIds: ['source-personal'],
+  }).map((event) => event.id)).toEqual(['event-2']);
 });

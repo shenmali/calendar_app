@@ -1,12 +1,14 @@
 'use client';
 
 import { SourceFilter, type CalendarSourceFilter } from '@/components/calendar/source-filter';
+import { formatLastSyncedAt } from '@/lib/calendar/event-display';
 
 type CalendarToolbarProps = {
   year: number;
   sources: CalendarSourceFilter[];
   selectedSourceIds: string[];
-  syncState: 'idle' | 'syncing' | 'success' | 'error';
+  syncState: 'idle' | 'syncing' | 'success' | 'partial' | 'error';
+  lastSyncedAt: string | null;
   onPreviousYear: () => void;
   onNextYear: () => void;
   onToday: () => void;
@@ -15,14 +17,15 @@ type CalendarToolbarProps = {
 };
 
 const syncLabels = {
-  idle: 'Son eşitleme: Henüz eşitlenmedi',
+  idle: null,
   syncing: 'Eşitleniyor…',
-  success: 'Eşitleme isteği alındı',
+  success: 'Eşitleme tamamlandı',
+  partial: 'Bazı takvimler eşitlenemedi',
   error: 'Eşitleme başlatılamadı',
 } as const;
 
 export function CalendarToolbar({
-  year, sources, selectedSourceIds, syncState, onPreviousYear, onNextYear, onToday, onSourceChange, onRefresh,
+  year, sources, selectedSourceIds, syncState, lastSyncedAt, onPreviousYear, onNextYear, onToday, onSourceChange, onRefresh,
 }: CalendarToolbarProps) {
   return (
     <nav aria-label="Takvim araçları" className="mb-5 rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
@@ -36,7 +39,7 @@ export function CalendarToolbar({
         <span className="hidden h-6 w-px bg-slate-200 sm:block" aria-hidden="true" />
         <SourceFilter sources={sources} selectedSourceIds={selectedSourceIds} onChange={onSourceChange} />
         <div className="ml-auto flex items-center gap-2">
-          <span aria-live="polite" className="hidden text-xs text-slate-500 lg:inline">{syncLabels[syncState]}</span>
+          <span aria-live="polite" className="hidden text-xs text-slate-500 lg:inline">{syncLabels[syncState] ?? formatLastSyncedAt(lastSyncedAt)}</span>
           <button className="calendar-control bg-sky-700 text-white hover:bg-sky-800 disabled:bg-sky-400" disabled={syncState === 'syncing'} onClick={onRefresh} type="button">
             {syncState === 'syncing' ? 'Yenileniyor…' : 'Yenile'}
           </button>

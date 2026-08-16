@@ -1,18 +1,21 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 
 import { CalendarToolbar } from '@/components/calendar/calendar-toolbar';
 import { EventDetailPanel } from '@/components/calendar/event-detail-panel';
 import { MonthCard } from '@/components/calendar/month-card';
 import type { CalendarSourceFilter } from '@/components/calendar/source-filter';
 import { eventDateInIstanbul, groupEventsByDay, selectEvents } from '@/lib/calendar/event-selectors';
+import { readManualSyncResult } from '@/lib/calendar/sync-refresh';
 import { buildYearMonths } from '@/lib/calendar/year-grid';
 import type { CalendarDisplayEvent } from '@/lib/calendar/types';
 
 type YearGridProps = {
   events: CalendarDisplayEvent[];
   initialYear?: number;
+  lastSyncedAt: string | null;
 };
 
 function getTodayInIstanbul(): string {
@@ -22,9 +25,9 @@ function getTodayInIstanbul(): string {
 function sourceFilters(events: CalendarDisplayEvent[]): CalendarSourceFilter[] {
   const sources = new Map<string, CalendarSourceFilter>();
   for (const event of events) {
-    if (!sources.has(event.sourceCalendarId)) {
-      sources.set(event.sourceCalendarId, {
-        id: event.sourceCalendarId,
+    if (!sources.has(event.sourceId)) {
+      sources.set(event.sourceId, {
+        id: event.sourceId,
         name: event.sourceName ?? event.sourceCalendarId,
         color: event.sourceColor ?? (event.provider === 'google' ? '#0284c7' : '#7c3aed'),
       });
@@ -33,14 +36,15 @@ function sourceFilters(events: CalendarDisplayEvent[]): CalendarSourceFilter[] {
   return [...sources.values()];
 }
 
-export function YearGrid({ events, initialYear = 2026 }: YearGridProps) {
+export function YearGrid({ events, initialYear = 2026, lastSyncedAt }: YearGridProps) {
+  const router = useRouter();
   const [year, setYear] = useState(initialYear);
   const [selectedDate, setSelectedDate] = useState(`${initialYear}-01-15`);
   const sources = useMemo(() => sourceFilters(events), [events]);
   const [selectedSourceIds, setSelectedSourceIds] = useState(() => sources.map((source) => source.id));
-  const [syncState, setSyncState] = useState<'idle' | 'syncing' | 'success' | 'error'>('idle');
+  const [syncState, setSyncState] = useState<'idle' | 'syncing' | 'success' | 'partial' | 'error'>('idle');
   const months = useMemo(() => buildYearMonths(year, 1), [year]);
-  const filteredEvents = useMemo(() => selectEvents(events, { year, sourceCalendarIds: selectedSourceIds }), [events, selectedSourceIds, year]);
+  const filteredEvents = useMemo(() => selectEvents(events, { year, sourceIds: selectedSourceIds }), [events, selectedSourceIds, year]);
   const eventsByDay = useMemo(() => groupEventsByDay(filteredEvents), [filteredEvents]);
   const selectedEvents = eventsByDay.get(selectedDate) ?? [];
 
@@ -59,7 +63,9 @@ export function YearGrid({ events, initialYear = 2026 }: YearGridProps) {
     setSyncState('syncing');
     try {
       const response = await fetch('/api/sync', { method: 'POST' });
-      setSyncState(response.ok ? 'success' : 'error');
+      const result = await readManualSyncResult(response);
+      setSyncState(result.state);
+      if (result.shouldRefresh) router.refresh();
     } catch {
       setSyncState('error');
     }
@@ -78,6 +84,7 @@ export function YearGrid({ events, initialYear = 2026 }: YearGridProps) {
         onSourceChange={setSelectedSourceIds}
         onToday={selectToday}
         selectedSourceIds={selectedSourceIds}
+        lastSyncedAt={lastSyncedAt}
         sources={sources}
         syncState={syncState}
         year={year}
@@ -88,6 +95,7 @@ export function YearGrid({ events, initialYear = 2026 }: YearGridProps) {
         </section>
         <EventDetailPanel date={selectedDate} events={selectedEvents} />
       </div>
+      {events.length === 0 ? <p className="mt-4 text-sm text-slate-500">Bağlı takvimlerde gösterilecek etkinlik yok.</p> : null}
     </main>
   );
 }

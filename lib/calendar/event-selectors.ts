@@ -4,7 +4,7 @@ export type EventFilters = {
   year: number;
   range?: DateRange;
   connectionIds?: string[];
-  sourceCalendarIds?: string[];
+  sourceIds?: string[];
 };
 
 const dateFormatter = new Intl.DateTimeFormat('en-US', {
@@ -27,7 +27,7 @@ export function eventDateInIstanbul(event: Pick<CalendarDisplayEvent, 'startsAt'
 
 export function selectEvents(events: CalendarDisplayEvent[], filters: EventFilters): CalendarDisplayEvent[] {
   const connectionIds = filters.connectionIds ? new Set(filters.connectionIds) : null;
-  const sourceCalendarIds = filters.sourceCalendarIds ? new Set(filters.sourceCalendarIds) : null;
+  const sourceIds = filters.sourceIds ? new Set(filters.sourceIds) : null;
   const yearPrefix = `${filters.year}-`;
 
   return events.filter((event) => {
@@ -35,7 +35,7 @@ export function selectEvents(events: CalendarDisplayEvent[], filters: EventFilte
     if (!date.startsWith(yearPrefix)) return false;
     if (filters.range && (date < filters.range.start || date >= filters.range.end)) return false;
     if (connectionIds && !connectionIds.has(event.connectionId)) return false;
-    if (sourceCalendarIds && !sourceCalendarIds.has(event.sourceCalendarId)) return false;
+    if (sourceIds && !sourceIds.has(event.sourceId)) return false;
     return event.status === 'confirmed';
   });
 }

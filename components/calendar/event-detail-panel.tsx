@@ -1,4 +1,5 @@
 import { TURKISH_MONTHS } from '@/lib/calendar/year-grid';
+import { formatEventTimeRange } from '@/lib/calendar/event-display';
 import type { CalendarDisplayEvent } from '@/lib/calendar/types';
 
 type EventDetailPanelProps = {
@@ -9,11 +10,6 @@ type EventDetailPanelProps = {
 function dateHeading(date: string): string {
   const [year, month, day] = date.split('-').map(Number);
   return `${day} ${TURKISH_MONTHS[month - 1]} ${year}`;
-}
-
-function eventTime(event: CalendarDisplayEvent): string {
-  if (event.isAllDay) return 'Tüm gün';
-  return new Intl.DateTimeFormat('tr-TR', { timeZone: 'Europe/Istanbul', hour: '2-digit', minute: '2-digit' }).format(new Date(event.startsAt));
 }
 
 export function EventDetailPanel({ date, events }: EventDetailPanelProps) {
@@ -28,7 +24,7 @@ export function EventDetailPanel({ date, events }: EventDetailPanelProps) {
           {events.map((event) => (
             <li className="border-l-2 border-sky-600 pl-3" key={event.id}>
               <p className="text-sm font-semibold text-slate-800">{event.title}</p>
-              <p className="text-xs text-slate-500">{eventTime(event)}</p>
+              <p className="text-xs text-slate-500">{formatEventTimeRange(event)}</p>
               {event.location ? <p className="mt-1 text-xs text-slate-600">{event.location}</p> : null}
               <p className="mt-1 text-xs text-slate-500">{event.sourceName ?? (event.provider === 'google' ? 'Google Takvim' : 'Outlook Takvim')}</p>
             </li>

@@ -32,6 +32,7 @@ export type CalendarDisplayEvent = Pick<
   CalendarEvent,
   'id' | 'connectionId' | 'sourceCalendarId' | 'provider' | 'title' | 'description' | 'location' | 'startsAt' | 'endsAt' | 'isAllDay' | 'status'
 > & {
+  sourceId: string;
   sourceName?: string;
   sourceColor?: string | null;
 };
