@@ -23,7 +23,7 @@ test('cron bearer handler is reachable while an ordinary protected API is guarde
   expect(protectedApi.headers().location).toMatch(/\/login$/);
 });
 
-test('does not serialize the configured allowed email into the login response', async ({ page }) => {
+test('does not serialize a private allow-list address into the login response', async ({ page }) => {
   await page.goto('/login');
 
   expect(await page.content()).not.toContain('private-allowed@example.com');

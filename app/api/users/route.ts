@@ -1,11 +1,10 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
-import { addOrRestoreMember, type SafeAllowedUser } from '@/lib/access/member-management';
-import { requireActiveOwner, AccessError } from '@/lib/access/owner-guard';
+import { addOrRestoreMember, MemberManagementError, type SafeAllowedUser } from '@/lib/access/member-management';
+import { AccessError, getCurrentActiveOwner } from '@/lib/access/server-owner';
 import { normalizeEmail } from '@/lib/access/allowed-users';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { createClient } from '@/lib/supabase/server';
 
 const safeUserFields = 'id, email, role, status, created_at, revoked_at';
 const addMemberSchema = z.object({ email: z.string().trim().email().max(320) });
@@ -16,25 +15,6 @@ function accessErrorResponse(error: unknown) {
   }
 
   return null;
-}
-
-export async function currentActiveOwner() {
-  const sessionClient = await createClient();
-  const { data: { user }, error: userError } = await sessionClient.auth.getUser();
-  const admin = createAdminClient();
-
-  return requireActiveOwner({
-    getCurrentUser: async () => userError || !user ? null : { id: user.id },
-    findAllowedUser: async (userId) => {
-      const { data, error } = await admin
-        .from('allowed_users')
-        .select('role, status')
-        .eq('user_id', userId)
-        .maybeSingle();
-      if (error) throw error;
-      return data;
-    },
-  });
 }
 
 async function findAuthUserByEmail(email: string) {
@@ -51,7 +31,7 @@ async function findAuthUserByEmail(email: string) {
 
 export async function GET() {
   try {
-    await currentActiveOwner();
+    await getCurrentActiveOwner();
     const { data, error } = await createAdminClient()
       .from('allowed_users')
       .select(safeUserFields)
@@ -69,11 +49,20 @@ export async function POST(request: Request) {
   if (!parsed.success) return NextResponse.json({ error: 'A valid email is required.' }, { status: 400 });
 
   try {
-    await currentActiveOwner();
+    await getCurrentActiveOwner();
     const admin = createAdminClient();
     const member = await addOrRestoreMember({
       email: parsed.data.email,
       findAuthUserByEmail,
+      findExistingMembership: async (userId) => {
+        const { data, error } = await admin
+          .from('allowed_users')
+          .select('role, status')
+          .eq('user_id', userId)
+          .maybeSingle();
+        if (error) throw error;
+        return data;
+      },
       createAuthUser: async (input) => {
         const { data, error } = await admin.auth.admin.createUser(input);
         if (error) throw error;
@@ -92,6 +81,9 @@ export async function POST(request: Request) {
     });
     return NextResponse.json(member, { status: 201 });
   } catch (error) {
+    if (error instanceof MemberManagementError) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
     return accessErrorResponse(error) ?? NextResponse.json({ error: 'Unable to add user.' }, { status: 500 });
   }
 }

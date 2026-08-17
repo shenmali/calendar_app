@@ -68,6 +68,7 @@ test('an owner adds a normalized member without returning Auth credentials', asy
   mocks.getUser.mockResolvedValue({ data: { user: { id: 'owner-id' } }, error: null });
   mocks.from
     .mockReturnValueOnce(ownerQuery())
+    .mockReturnValueOnce(query(null))
     .mockReturnValueOnce(query({
       id: 'member-row', email: 'member@example.com', role: 'member', status: 'active',
       created_at: '2026-08-17T00:00:00.000Z', revoked_at: null,
@@ -80,6 +81,18 @@ test('an owner adds a normalized member without returning Auth credentials', asy
   expect(response.status).toBe(201);
   expect(await response.json()).toEqual(expect.objectContaining({ email: 'member@example.com' }));
   expect(mocks.createUser).toHaveBeenCalledWith({ email: 'member@example.com', email_confirm: true });
+});
+
+test('an owner cannot accidentally add an owner address as a member', async () => {
+  mocks.getUser.mockResolvedValue({ data: { user: { id: 'owner-id' } }, error: null });
+  mocks.from
+    .mockReturnValueOnce(ownerQuery())
+    .mockReturnValueOnce(query({ role: 'owner', status: 'active' }));
+  mocks.listUsers.mockResolvedValue({ data: { users: [{ id: 'owner-id', email: 'owner@example.com' }] }, error: null });
+
+  const response = await POST(jsonRequest({ email: 'owner@example.com' }));
+
+  expect(response.status).toBe(400);
 });
 
 test('an owner cannot revoke self or another owner', async () => {

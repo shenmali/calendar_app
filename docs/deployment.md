@@ -9,7 +9,7 @@ This runbook describes what must be configured before a deployment. It does not 
 | `NEXT_PUBLIC_SUPABASE_URL` | Browser-visible | Supabase project URL. |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Browser-visible | Supabase publishable key used by browser and middleware. |
 | `NEXT_PUBLIC_APP_URL` | Browser-visible | Canonical HTTPS origin used to construct OAuth callbacks. |
-| `ALLOWED_EMAIL` | Server-only configuration | The one permitted magic-link account. Do not expose it in logs. |
+| `OWNER_EMAIL` | Server-only configuration | Initial owner account used only by `pnpm provision:owner`. Do not expose it in logs. |
 | `SUPABASE_SERVICE_ROLE_KEY` | Server-only secret | Privileged server-only database/Auth work. |
 | `TOKEN_ENCRYPTION_KEY` | Server-only secret | Canonical base64 encoding of exactly 32 random bytes for AES-256-GCM token encryption. |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Server-only configuration/secret | Google OAuth client credentials. The ID is not intrinsically secret, but this app reads both server-side. |
@@ -48,7 +48,7 @@ For CI, load the target environment into the command process (for example with V
    supabase db push
    ```
 
-3. Verify staging login, source filtering, export, manual sync, project health, and Database Linter/Security Advisor results. Verify RLS with the allowed user and a different account/test token: the owner may read only their rows and the other identity must read no calendar, source, connection, or sync data. `oauth_connections` remains service-role-only.
+3. Verify staging login, source filtering, export, manual sync, project health, and Database Linter/Security Advisor results. Verify RLS with two active accounts: each identity may read only its own calendar, source, connection, and sync data. `oauth_connections` remains service-role-only.
 4. Only after staging succeeds, back up production and record its exact Supabase project ref and current Vercel version. Re-link explicitly to production, inspect and dry-run before asking for approval:
 
    ```bash
@@ -59,7 +59,7 @@ For CI, load the target environment into the command process (for example with V
 
 5. Confirm the linked production ref, migration list, and dry-run target with the approver. Only after that explicit approval, run `supabase db push`. Never use a direct push against an implicitly selected project.
 
-Hosted Auth setup is separate from migrations: set the production Site URL to the canonical production URL, and allow the exact `https://<host>/auth/callback` magic-link redirect URL. Disable **Allow new users to sign up** before provisioning the single allowed user. In a secure, service-role-only environment run `pnpm provision:allowed-user`; it refuses to add a user when another Auth user already exists.
+Hosted Auth setup is separate from migrations: set the production Site URL to the canonical production URL, and allow the exact `https://<host>/auth/callback` magic-link redirect URL. Disable **Allow new users to sign up** before provisioning the initial owner. In a secure, service-role-only environment run `pnpm provision:owner`; it creates or reuses that Auth account and upserts its active `owner` membership without changing other users.
 
 For previews, configure the preview site's exact `/auth/callback` URL in Supabase Auth as well. Do not assume an arbitrary Vercel preview hostname is allowed; use a stable preview domain or explicitly maintain the permitted URLs.
 
@@ -78,15 +78,15 @@ For application rollback, promote or roll back to the last known-good Vercel dep
 ## Post-deploy smoke test
 
 1. Run the preflight against production configuration and inspect deployment logs without exposing secret values.
-2. Confirm an unauthenticated visit redirects to `/login`; verify a non-allowed address cannot request a magic link. Sign in only as the pre-provisioned allowed user.
+2. Confirm an unauthenticated visit redirects to `/login`. A magic-link request never creates a new Auth user; after sign-in, only an active `allowed_users` membership can enter the app. Sign in as the provisioned owner, add a test member from **Kullanıcılar**, and verify that each account can see only its own calendar data.
 3. Connect one Google and one Microsoft test calendar, inspect provider audit logs for read-only activity, then run manual sync. Confirm tokens never appear in UI, responses, or logs.
 4. Confirm the annual grid, source filter, and all ICS/CSV/XLSX downloads with known test events.
 5. Verify one production cron execution in Vercel logs is authorized and completes. Do not manufacture a browser request carrying `CRON_SECRET`.
 
-For the real authenticated Playwright smoke test, create a disposable allowed-user session and controlled calendar data that includes the named source and event. Then run:
+For the real authenticated Playwright smoke test, create a disposable active-member session and controlled calendar data that includes the named source and event. Then run:
 
 ```bash
-PLAYWRIGHT_BASE_URL=https://preview.example.test PLAYWRIGHT_STORAGE_STATE=./tmp/allowed-user.json PLAYWRIGHT_FULL_FLOW_SOURCE_NAME="Smoke calendar" PLAYWRIGHT_FULL_FLOW_EVENT_TITLE="Deployment smoke event" pnpm test:e2e tests/e2e/full-flow.spec.ts
+PLAYWRIGHT_BASE_URL=https://preview.example.test PLAYWRIGHT_STORAGE_STATE=./tmp/member.json PLAYWRIGHT_FULL_FLOW_SOURCE_NAME="Smoke calendar" PLAYWRIGHT_FULL_FLOW_EVENT_TITLE="Deployment smoke event" pnpm test:e2e tests/e2e/full-flow.spec.ts
 ```
 
 The storage state is sensitive; keep it outside the repository and remove it after the test. Without all fixture variables, `full-flow.spec.ts` skips rather than bypassing middleware, logging in programmatically, or inventing data.

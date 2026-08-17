@@ -9,14 +9,22 @@ export type SafeAllowedUser = {
   revoked_at?: string | null;
 };
 
+export class MemberManagementError extends Error {
+  constructor(message: string) {
+    super(message);
+  }
+}
+
 export async function addOrRestoreMember({
   email,
   findAuthUserByEmail,
+  findExistingMembership,
   createAuthUser,
   upsertMember,
 }: {
   email: string;
   findAuthUserByEmail: (email: string) => Promise<{ id: string } | null>;
+  findExistingMembership: (userId: string) => Promise<{ role: 'owner' | 'member'; status: 'active' | 'revoked' } | null>;
   createAuthUser: (input: { email: string; email_confirm: true }) => Promise<{ id: string }>;
   upsertMember: (input: {
     user_id: string;
@@ -32,6 +40,10 @@ export async function addOrRestoreMember({
     email: normalizedEmail,
     email_confirm: true,
   });
+  const existingMembership = await findExistingMembership(authUser.id);
+  if (existingMembership?.role === 'owner') {
+    throw new MemberManagementError('Owners cannot be changed to members.');
+  }
 
   return upsertMember({
     user_id: authUser.id,

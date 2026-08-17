@@ -14,12 +14,27 @@ test('adds a normalized member with an email-confirmed auth account', async () =
   const member = await addOrRestoreMember({
     email: ' Member@Example.com ',
     findAuthUserByEmail: async () => null,
+    findExistingMembership: async () => null,
     createAuthUser,
     upsertMember,
   });
 
   expect(createAuthUser).toHaveBeenCalledWith({ email: 'member@example.com', email_confirm: true });
   expect(member).toEqual(expect.objectContaining({ email: 'member@example.com', role: 'member' }));
+});
+
+test('never changes an existing owner into a member', async () => {
+  const upsertMember = vi.fn();
+
+  await expect(addOrRestoreMember({
+    email: 'owner@example.com',
+    findAuthUserByEmail: async () => ({ id: 'owner-id' }),
+    findExistingMembership: async () => ({ role: 'owner', status: 'active' }),
+    createAuthUser: vi.fn(),
+    upsertMember,
+  })).rejects.toThrow('Owners cannot be changed to members.');
+
+  expect(upsertMember).not.toHaveBeenCalled();
 });
 
 test('revokes a member and disables future Auth sessions without deleting calendar data', async () => {

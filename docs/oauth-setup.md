@@ -22,7 +22,7 @@ Never reuse production client secrets or token encryption keys in a preview envi
 
 ## Google Cloud
 
-1. In Google Cloud, configure the OAuth consent screen before creating the credential. Select the audience/account type that matches the one allowed user; for an external app in testing, add that account as a test user. Publish or complete verification only when Google's scope/audience rules require it.
+1. In Google Cloud, configure the OAuth consent screen before creating the credential. Select the audience/account type that matches your active members; for an external app in testing, add each required account as a test user. Publish or complete verification only when Google's scope/audience rules require it.
 2. Create an OAuth 2.0 **Web application** client and add the exact production Google callback URI above under Authorized redirect URIs. Add the stable preview URI only when preview OAuth testing is deliberately enabled.
 3. Put the generated values in server-only `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` for the matching Vercel scope. Do not put a client secret in browser code.
 4. Review the consent screen to ensure the only calendar scope is `https://www.googleapis.com/auth/calendar.readonly`. The application should appear as read-only and no provider mutation calls should be authorized.
@@ -36,4 +36,4 @@ Never reuse production client secrets or token encryption keys in a preview envi
 
 ## Verification after configuration
 
-Sign in as the already provisioned `ALLOWED_EMAIL`, start each connection from the app, and check that the provider returns to the matching callback. Confirm that a manual sync only lists/reads calendars and events, and that neither refresh tokens nor client secrets occur in responses, UI, telemetry, or logs. Revoke the test connection if it is no longer needed.
+Sign in as an active owner or member, start each connection from the app, and check that the provider returns to the matching callback. Confirm that a manual sync only lists/reads calendars and events, and that neither refresh tokens nor client secrets occur in responses, UI, telemetry, or logs. Revoke the test connection if it is no longer needed.

@@ -2,8 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
 import { type SafeAllowedUser, changeMemberStatus } from '@/lib/access/member-management';
-import { AccessError } from '@/lib/access/owner-guard';
-import { currentActiveOwner } from '@/app/api/users/route';
+import { AccessError, getCurrentActiveOwner } from '@/lib/access/server-owner';
 import { createAdminClient } from '@/lib/supabase/admin';
 
 type RouteContext = { params: Promise<{ id: string }> };
@@ -24,7 +23,7 @@ export async function PATCH(request: Request, { params }: RouteContext) {
   if (!parsed.success) return NextResponse.json({ error: 'Expected active or revoked status.' }, { status: 400 });
 
   try {
-    const { userId: currentOwnerUserId } = await currentActiveOwner();
+    const { userId: currentOwnerUserId } = await getCurrentActiveOwner();
     const { id } = await params;
     const admin = createAdminClient();
     const { data: target, error: targetError } = await admin
