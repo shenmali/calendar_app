@@ -6,7 +6,7 @@ test('izin verilmeyen e-posta callback sonrasında oturumu kapatır ve girişe y
 
   const response = await handleAuthCallback({
     email: 'other@example.com',
-    allowedEmail: 'owner@example.com',
+    findActiveAllowedUser: async () => false,
     signOut: async () => {
       signedOut = true;
     },
@@ -22,7 +22,7 @@ test('izin verilen kullanıcı için profil satırını yazıp uygulamaya yönle
   const response = await handleAuthCallback({
     userId: 'c2fa7f5b-b00d-4efb-934d-932a1c65d48e',
     email: 'owner@example.com',
-    allowedEmail: 'owner@example.com',
+    findActiveAllowedUser: async () => true,
     signOut: async () => {
       throw new Error('izin verilen kullanıcı çıkış yapmamalı');
     },
@@ -44,7 +44,7 @@ test('doğrulanmış kullanıcı kimliği yoksa callback erişimi reddeder', asy
 
   const response = await handleAuthCallback({
     email: 'owner@example.com',
-    allowedEmail: 'owner@example.com',
+    findActiveAllowedUser: async () => true,
     signOut: async () => {
       signedOut = true;
     },
@@ -60,7 +60,7 @@ test('profil yazımı başarısız olursa oturumu kapatır ve erişim vermez', a
   const response = await handleAuthCallback({
     userId: 'c2fa7f5b-b00d-4efb-934d-932a1c65d48e',
     email: 'owner@example.com',
-    allowedEmail: 'owner@example.com',
+    findActiveAllowedUser: async () => true,
     signOut: async () => {
       signedOut = true;
     },

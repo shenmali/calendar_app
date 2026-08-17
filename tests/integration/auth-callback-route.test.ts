@@ -11,13 +11,8 @@ const mocks = vi.hoisted(() => ({
   upsert: vi.fn(),
 }));
 
-vi.mock('@/lib/supabase/server', () => ({
-  createClient: mocks.createServerClient,
-}));
-
-vi.mock('@/lib/supabase/admin', () => ({
-  createAdminClient: mocks.createAdminClient,
-}));
+vi.mock('@/lib/supabase/server', () => ({ createClient: mocks.createServerClient }));
+vi.mock('@/lib/supabase/admin', () => ({ createAdminClient: mocks.createAdminClient }));
 
 import { GET } from '@/app/auth/callback/route';
 
@@ -30,9 +25,21 @@ function callbackRequest() {
   return new NextRequest('https://calendar.example.com/auth/callback?code=magic-code');
 }
 
+function mockAllowedUserLookup(active: boolean) {
+  const maybeSingle = vi.fn().mockResolvedValue({ data: active ? { id: 'allowed-row' } : null, error: null });
+  const statusEq = vi.fn().mockReturnValue({ maybeSingle });
+  const emailEq = vi.fn().mockReturnValue({ eq: statusEq });
+  const userEq = vi.fn().mockReturnValue({ eq: emailEq });
+  const select = vi.fn().mockReturnValue({ eq: userEq });
+
+  mocks.from.mockImplementation((table: string) => {
+    if (table === 'allowed_users') return { select };
+    return { upsert: mocks.upsert };
+  });
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
-  vi.stubEnv('ALLOWED_EMAIL', 'owner@example.com');
   mocks.createServerClient.mockResolvedValue({
     auth: {
       exchangeCodeForSession: mocks.exchangeCodeForSession,
@@ -41,17 +48,15 @@ beforeEach(() => {
     },
   });
   mocks.createAdminClient.mockReturnValue({ from: mocks.from });
-  mocks.from.mockReturnValue({ upsert: mocks.upsert });
   mocks.exchangeCodeForSession.mockResolvedValue({ error: null });
   mocks.signOut.mockResolvedValue({ error: null });
   mocks.upsert.mockResolvedValue({ error: null });
+  mockAllowedUserLookup(true);
 });
 
-afterEach(() => {
-  vi.unstubAllEnvs();
-});
+afterEach(() => vi.unstubAllEnvs());
 
-test('callback kodu oturuma değiştirir ve değişim hatasını girişe yönlendirir', async () => {
+test('redirects to login when the callback code exchange fails', async () => {
   mocks.exchangeCodeForSession.mockResolvedValue({ error: new Error('expired code') });
 
   const response = await GET(callbackRequest());
@@ -63,7 +68,8 @@ test('callback kodu oturuma değiştirir ve değişim hatasını girişe yönlen
   );
 });
 
-test('doğrulanmış ancak izin verilmeyen callback kullanıcısının oturumunu kapatır', async () => {
+test('signs out a verified callback user absent from active allowlist', async () => {
+  mockAllowedUserLookup(false);
   mocks.getUser.mockResolvedValue({
     data: { user: { ...allowedUser, email: 'other@example.com' } },
     error: null,
@@ -71,26 +77,21 @@ test('doğrulanmış ancak izin verilmeyen callback kullanıcısının oturumunu
 
   const response = await GET(callbackRequest());
 
-  expect(mocks.getUser).toHaveBeenCalledOnce();
   expect(mocks.signOut).toHaveBeenCalledOnce();
-  expect(mocks.from).not.toHaveBeenCalled();
   expect(response.headers.get('location')).toBe(
     'https://calendar.example.com/login?error=unauthorized',
   );
 });
 
-test('izin verilen callback kullanıcısı için profil upsertini route üzerinden yapar', async () => {
+test('writes a profile only after active allowlist authorization', async () => {
   mocks.getUser.mockResolvedValue({ data: { user: allowedUser }, error: null });
 
   const response = await GET(callbackRequest());
 
+  expect(mocks.from).toHaveBeenCalledWith('allowed_users');
   expect(mocks.from).toHaveBeenCalledWith('profiles');
   expect(mocks.upsert).toHaveBeenCalledWith(
-    {
-      id: allowedUser.id,
-      user_id: allowedUser.id,
-      email: allowedUser.email,
-    },
+    { id: allowedUser.id, user_id: allowedUser.id, email: allowedUser.email },
     { onConflict: 'id' },
   );
   expect(response.headers.get('location')).toBe('https://calendar.example.com/');

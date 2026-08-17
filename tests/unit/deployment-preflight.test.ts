@@ -6,7 +6,7 @@ const validEnvironment = {
   NEXT_PUBLIC_SUPABASE_URL: 'https://calendar.supabase.co',
   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: 'publishable-key',
   SUPABASE_SERVICE_ROLE_KEY: 'service-role-key',
-  ALLOWED_EMAIL: 'owner@example.com',
+  OWNER_EMAIL: 'owner@example.com',
   TOKEN_ENCRYPTION_KEY: Buffer.alloc(32, 1).toString('base64'),
   GOOGLE_CLIENT_ID: 'google-client-id',
   GOOGLE_CLIENT_SECRET: 'google-client-secret',

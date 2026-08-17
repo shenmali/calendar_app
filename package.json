@@ -9,7 +9,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
-    "provision:allowed-user": "node ./scripts/provision-allowed-user.mjs",
+    "provision:owner": "node ./scripts/provision-owner.mjs",
     "preflight:deployment": "node ./scripts/deployment-preflight.mjs"
   },
   "dependencies": {

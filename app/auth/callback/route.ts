@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { handleAuthCallback } from '@/lib/auth/callback';
+import { normalizeEmail } from '@/lib/access/allowed-users';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 
@@ -30,7 +31,6 @@ export async function GET(request: NextRequest) {
   return handleAuthCallback({
     userId: user?.id,
     email: user?.email,
-    allowedEmail: process.env.ALLOWED_EMAIL,
     origin: request.nextUrl.origin,
     signOut: async () => {
       await supabase.auth.signOut();
@@ -43,6 +43,21 @@ export async function GET(request: NextRequest) {
       if (error) {
         throw error;
       }
+    },
+    findActiveAllowedUser: async ({ userId, email }) => {
+      const { data, error } = await createAdminClient()
+        .from('allowed_users')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('email', normalizeEmail(email))
+        .eq('status', 'active')
+        .maybeSingle();
+
+      if (error) {
+        throw error;
+      }
+
+      return Boolean(data);
     },
   });
 }
