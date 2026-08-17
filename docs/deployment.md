@@ -25,6 +25,8 @@ node -e "console.log(require('node:crypto').randomBytes(32).toString('base64url'
 
 `CRON_SECRET` must be at least 16 characters and contain at least three of uppercase letters, lowercase letters, digits, and symbols. The base64url generator produces an appropriately high-entropy secret; rerun it rather than inventing a memorable phrase.
 
+On a Vercel **Production** build, the tracked `prebuild` hook first runs this same preflight and then idempotently runs `pnpm provision:owner` inside Vercel's secure build environment. This creates or reuses the initial owner without downloading `OWNER_EMAIL` or the server key to a workstation. It does not run for local or Preview builds.
+
 After loading the intended environment, run:
 
 ```bash
