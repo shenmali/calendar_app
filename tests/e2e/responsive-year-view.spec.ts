@@ -5,35 +5,29 @@ const storageState = process.env.PLAYWRIGHT_STORAGE_STATE;
 test.skip(!storageState, 'requires an authenticated Supabase storage state');
 test.use({ storageState: storageState ?? undefined });
 
-test('keeps selected-day details before the annual grid and focuses them on a phone viewport', async ({ page }) => {
+test('keeps the annual rail before selected-day details and focuses them on a phone viewport', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/');
 
   const details = page.getByRole('complementary', { name: 'Seçili gün ayrıntıları' });
-  const grid = page.getByTestId('year-grid');
+  const rail = page.getByTestId('year-rail');
   await expect(details).toBeVisible();
-  await expect(grid).toBeVisible();
-  const [detailBox, gridBox] = await Promise.all([details.boundingBox(), grid.boundingBox()]);
-  expect(detailBox?.y).toBeLessThan(gridBox?.y ?? Number.POSITIVE_INFINITY);
+  await expect(rail).toBeVisible();
+  const [detailBox, railBox] = await Promise.all([details.boundingBox(), rail.boundingBox()]);
+  expect(railBox?.y).toBeLessThan(detailBox?.y ?? Number.POSITIVE_INFINITY);
   const day = page.getByRole('button', { name: '15 Ocak 2026 gününü seç' });
   await expect(day).toHaveCSS('min-height', '44px');
+  const headings = rail.getByRole('heading', { level: 2 });
+  const [firstMonth, secondMonth] = await Promise.all([headings.nth(0).boundingBox(), headings.nth(1).boundingBox()]);
+  expect(secondMonth?.x).toBeGreaterThan(firstMonth?.x ?? Number.POSITIVE_INFINITY);
+  expect(secondMonth?.y).toBe(firstMonth?.y);
+  const scrollPosition = await rail.evaluate((element) => {
+    const before = element.scrollLeft;
+    element.scrollLeft = element.scrollWidth - element.clientWidth;
+    return { after: element.scrollLeft, before };
+  });
+  expect(scrollPosition.after).toBeGreaterThan(scrollPosition.before);
+  await expect(headings.nth(11)).toBeInViewport();
   await day.click();
   await expect(details).toBeFocused();
-});
-
-test('uses three, two, then one annual-grid columns at the documented breakpoints', async ({ page }) => {
-  await page.goto('/');
-  const headings = page.getByTestId('year-grid').getByRole('heading', { level: 2 });
-
-  await page.setViewportSize({ width: 1280, height: 1000 });
-  const [firstWide, thirdWide] = await Promise.all([headings.nth(0).boundingBox(), headings.nth(2).boundingBox()]);
-  expect(firstWide?.y).toBe(thirdWide?.y);
-
-  await page.setViewportSize({ width: 1024, height: 1000 });
-  const [firstMedium, thirdMedium] = await Promise.all([headings.nth(0).boundingBox(), headings.nth(2).boundingBox()]);
-  expect(thirdMedium?.y).toBeGreaterThan(firstMedium?.y ?? Number.POSITIVE_INFINITY);
-
-  await page.setViewportSize({ width: 390, height: 844 });
-  const [firstNarrow, secondNarrow] = await Promise.all([headings.nth(0).boundingBox(), headings.nth(1).boundingBox()]);
-  expect(secondNarrow?.y).toBeGreaterThan(firstNarrow?.y ?? Number.POSITIVE_INFINITY);
 });

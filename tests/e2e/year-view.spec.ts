@@ -6,14 +6,26 @@ test.skip(!storageState, 'requires an authenticated Supabase storage state');
 
 test.use({ storageState: storageState ?? undefined });
 
-test('shows an accessible annual planner and selected-day details without create controls', async ({ page }) => {
+test('shows an accessible annual rail and selected-day details without create controls', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto('/');
 
   await expect(page.getByRole('main', { name: '2026 yıllık takvim' })).toBeVisible();
   await expect(page.getByRole('navigation', { name: 'Takvim araçları' })).toBeVisible();
   await expect(page.getByRole('complementary', { name: 'Seçili gün ayrıntıları' })).toBeVisible();
-  await expect(page.getByTestId('year-grid').getByRole('heading', { level: 2 })).toHaveCount(12);
+  const rail = page.getByTestId('year-rail');
+  await expect(rail.getByRole('heading', { level: 2 })).toHaveCount(12);
+  expect(await rail.evaluate((element) => element.scrollWidth > element.clientWidth)).toBe(true);
+  const [firstMonth, thirdMonth] = await Promise.all([
+    rail.getByRole('heading', { level: 2 }).nth(0).boundingBox(),
+    rail.getByRole('heading', { level: 2 }).nth(2).boundingBox(),
+  ]);
+  expect(firstMonth?.y).toBe(thirdMonth?.y);
+  expect(await rail.evaluate((element) => {
+    element.scrollLeft = element.scrollWidth - element.clientWidth;
+    return element.scrollLeft;
+  })).toBeGreaterThan(0);
+  await expect(rail.getByRole('heading', { level: 2 }).nth(11)).toBeInViewport();
   await page.getByRole('button', { name: '15 Ocak 2026 gününü seç' }).click();
   await expect(page.getByRole('heading', { name: '15 Ocak 2026' })).toBeVisible();
   await expect(page.getByText('Yeni Etkinlik')).toHaveCount(0);
@@ -22,4 +34,5 @@ test('shows an accessible annual planner and selected-day details without create
   await expect(page.getByRole('main', { name: '2026 yıllık takvim' })).toBeVisible();
   await expect(page.getByRole('navigation', { name: 'Takvim araçları' })).toBeVisible();
   await expect(page.getByRole('complementary', { name: 'Seçili gün ayrıntıları' })).toBeVisible();
+  await expect(page.getByTestId('year-rail')).toBeVisible();
 });

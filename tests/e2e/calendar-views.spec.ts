@@ -8,7 +8,7 @@ test.use({ storageState: storageState ?? undefined });
 test('defaults to the annual view and keeps the chosen view in the URL', async ({ page }) => {
   await page.goto('/');
 
-  await expect(page.getByTestId('year-grid')).toBeVisible();
+  await expect(page.getByTestId('year-rail')).toBeVisible();
   await expect(page).not.toHaveURL(/view=/);
 
   await page.getByRole('button', { name: 'Hafta' }).click();
@@ -21,5 +21,5 @@ test('defaults to the annual view and keeps the chosen view in the URL', async (
 
   await page.getByRole('button', { name: 'Yıl' }).click();
   await expect(page).toHaveURL('/');
-  await expect(page.getByTestId('year-grid')).toBeVisible();
+  await expect(page.getByTestId('year-rail')).toBeVisible();
 });
