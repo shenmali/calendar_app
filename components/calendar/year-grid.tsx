@@ -7,8 +7,8 @@ import { CalendarToolbar } from '@/components/calendar/calendar-toolbar';
 import { ConnectionsDialog } from '@/components/calendar/connections-dialog';
 import { DayView } from '@/components/calendar/day-view';
 import { EventDetailPanel } from '@/components/calendar/event-detail-panel';
+import { HorizontalYearRail } from '@/components/calendar/horizontal-year-rail';
 import { MonthView } from '@/components/calendar/month-view';
-import { MonthCard } from '@/components/calendar/month-card';
 import type { CalendarSourceFilter } from '@/components/calendar/source-filter';
 import type { CalendarView } from '@/components/calendar/view-switcher';
 import { WeekView } from '@/components/calendar/week-view';
@@ -155,9 +155,7 @@ export function YearGrid({ events, initialYear = 2026, lastSyncedAt }: YearGridP
       />
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_19rem]">
         {view === 'year' ? (
-          <section aria-label="Yıl ayları" className="order-2 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3" data-testid="year-grid">
-            {months.map((month) => <MonthCard eventsByDay={eventsByDay} key={month.month} month={month} onSelectDate={selectDate} selectedDate={selectedDate} />)}
-          </section>
+          <HorizontalYearRail eventsByDay={eventsByDay} months={months} onSelectDate={selectDate} selectedDate={selectedDate} />
         ) : null}
         {view === 'month' ? <div className="order-2"><MonthView eventsByDay={eventsByDay} month={activeMonth} onSelectDate={selectDate} selectedDate={selectedDate} /></div> : null}
         {view === 'week' ? <div className="order-2"><WeekView events={filteredEvents} onSelectDate={selectDate} selectedDate={selectedDate} /></div> : null}

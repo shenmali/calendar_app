@@ -1,4 +1,6 @@
-import { eventsForDay } from '@/lib/calendar/event-selectors';
+import React from 'react';
+
+import { eventDateInIstanbul, eventsForDay } from '@/lib/calendar/event-selectors';
 import { TURKISH_MONTHS } from '@/lib/calendar/year-grid';
 import type { CalendarDisplayEvent } from '@/lib/calendar/types';
 
@@ -15,18 +17,23 @@ function dateLabel(date: string): string {
 }
 
 export function DayCell({ date, events, isSelected, onSelect }: DayCellProps) {
-  if (!date) return <div aria-hidden="true" className="min-h-16 border-b border-r border-slate-100 bg-slate-50/50" />;
+  if (!date) return <div aria-hidden="true" className="h-11 min-h-11 border-b border-r border-dashed border-slate-100 bg-slate-100/60 sm:h-16 sm:min-h-16" />;
 
   const { visible, remaining } = eventsForDay(events);
+  const [year, month, day] = date.split('-').map(Number);
+  const weekday = new Date(Date.UTC(year, month - 1, day)).getUTCDay();
+  const isWeekend = weekday === 0 || weekday === 6;
+  const isToday = date === eventDateInIstanbul({ startsAt: new Date().toISOString(), isAllDay: false });
+
   return (
     <button
       aria-label={`${dateLabel(date)} gününü seç`}
       aria-pressed={isSelected}
-      className={`min-h-11 overflow-hidden border-b border-r border-slate-100 p-1 text-left align-top transition hover:bg-sky-50 sm:min-h-16 ${isSelected ? 'bg-sky-100 ring-2 ring-inset ring-sky-600' : 'bg-white'}`}
+      className={`h-11 min-h-11 overflow-hidden border-b border-r border-slate-100 p-1 text-left align-top transition hover:bg-sky-50 sm:h-16 sm:min-h-16 ${isWeekend ? 'bg-slate-50' : 'bg-white'} ${isSelected ? 'ring-2 ring-inset ring-sky-600' : ''}`}
       onClick={() => onSelect(date)}
       type="button"
     >
-      <span className="mb-0.5 block text-xs font-semibold tabular-nums text-slate-600">{Number(date.slice(-2))}</span>
+      <span className={`mb-0.5 block w-fit text-xs font-semibold tabular-nums ${isWeekend ? 'text-slate-500' : 'text-slate-600'} ${isToday ? 'rounded-full px-1 outline outline-1 outline-sky-600' : ''}`}>{Number(date.slice(-2))}</span>
       <span className="sm:hidden" aria-label={`${events.length} etkinlik`}>
         {events.slice(0, 3).map((event) => <span aria-hidden="true" className="mr-0.5 inline-block h-1.5 w-1.5 rounded-full" key={event.id} style={{ backgroundColor: event.sourceColor ?? '#0284c7' }} />)}
         {events.length ? <span className="text-[10px] font-semibold text-sky-800">{events.length}</span> : null}
