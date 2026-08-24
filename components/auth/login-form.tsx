@@ -34,7 +34,7 @@ export function LoginForm() {
       }
 
       setStep('code');
-      setMessage('E-postanıza gönderilen 6 haneli kodu girin.');
+      setMessage('E-postanıza gönderilen 8 haneli kodu girin.');
     } catch {
       setMessage('Doğrulama kodu gönderilemedi. Lütfen yeniden deneyin.');
     } finally {
@@ -79,8 +79,8 @@ export function LoginForm() {
       ) : (
         <>
           <label className="block text-sm font-medium" htmlFor="token">Doğrulama kodu</label>
-          <input autoComplete="one-time-code" className="w-full rounded-md border border-slate-300 px-3 py-2 text-center text-lg tracking-[0.4em]" id="token" inputMode="numeric" maxLength={6} name="token" onChange={(event) => setToken(event.target.value.replace(/\D/g, ''))} pattern="[0-9]{6}" required value={token} />
-          <Button className="w-full" disabled={isSubmitting || token.length !== 6} type="submit">{isSubmitting ? 'Doğrulanıyor…' : 'Kodu doğrula'}</Button>
+          <input autoComplete="one-time-code" className="w-full rounded-md border border-slate-300 px-3 py-2 text-center text-lg tracking-[0.4em]" id="token" inputMode="numeric" maxLength={8} name="token" onChange={(event) => setToken(event.target.value.replace(/\D/g, ''))} pattern="[0-9]{8}" required value={token} />
+          <Button className="w-full" disabled={isSubmitting || token.length !== 8} type="submit">{isSubmitting ? 'Doğrulanıyor…' : 'Kodu doğrula'}</Button>
           <button className="w-full text-sm font-medium text-sky-700 hover:underline" onClick={() => { setStep('email'); setToken(''); setMessage(null); }} type="button">Farklı e-posta kullan</button>
         </>
       )}

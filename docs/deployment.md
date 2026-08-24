@@ -61,7 +61,7 @@ For CI, load the target environment into the command process (for example with V
 
 5. Confirm the linked production ref, migration list, and dry-run target with the approver. Only after that explicit approval, run `supabase db push`. Never use a direct push against an implicitly selected project.
 
-Hosted Auth setup is separate from migrations: set the production Site URL to the canonical production URL and disable **Allow new users to sign up** before provisioning the initial owner. In **Authentication → Email Templates → Magic Link**, remove `{{ .ConfirmationURL }}` and include `{{ .Token }}` (for example, `Takvime giriş kodunuz: {{ .Token }}`). This makes passwordless sign-in send the six-digit code expected by `/login`; it must be configured after the code-only version of the application is live. In a secure, service-role-only environment run `pnpm provision:owner`; it creates or reuses that Auth account and upserts its active `owner` membership without changing other users.
+Hosted Auth setup is separate from migrations: set the production Site URL to the canonical production URL and disable **Allow new users to sign up** before provisioning the initial owner. In **Authentication → Email Templates → Magic Link**, remove `{{ .ConfirmationURL }}` and include `{{ .Token }}` (for example, `Takvime giriş kodunuz: {{ .Token }}`). This makes passwordless sign-in send the eight-digit code expected by `/login`; it must be configured after the code-only version of the application is live. In a secure, service-role-only environment run `pnpm provision:owner`; it creates or reuses that Auth account and upserts its active `owner` membership without changing other users.
 
 The code-only login flow does not require a Supabase Auth redirect URL. Preview OAuth testing still requires a stable preview hostname and matching provider callback registration; do not assume an arbitrary Vercel preview hostname is valid.
 
@@ -80,7 +80,7 @@ For application rollback, promote or roll back to the last known-good Vercel dep
 ## Post-deploy smoke test
 
 1. Run the preflight against production configuration and inspect deployment logs without exposing secret values.
-2. Confirm an unauthenticated visit redirects to `/login`. Request a six-digit e-mail code and verify it as the provisioned owner. A code request never creates a new Auth user; after verification, only an active `allowed_users` membership can enter the app. Add a test member from **Kullanıcılar**, and verify that each account can see only its own calendar data.
+2. Confirm an unauthenticated visit redirects to `/login`. Request an eight-digit e-mail code and verify it as the provisioned owner. A code request never creates a new Auth user; after verification, only an active `allowed_users` membership can enter the app. Add a test member from **Kullanıcılar**, and verify that each account can see only its own calendar data.
 3. Connect one Google and one Microsoft test calendar, inspect provider audit logs for read-only activity, then run manual sync. Confirm tokens never appear in UI, responses, or logs.
 4. Confirm the annual grid, source filter, and all ICS/CSV/XLSX downloads with known test events.
 5. Verify one production cron execution in Vercel logs is authorized and completes. Do not manufacture a browser request carrying `CRON_SECRET`.
