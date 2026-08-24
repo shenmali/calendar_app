@@ -85,6 +85,13 @@ test('verifies an eight-digit email code from hosted Supabase Auth', async () =>
   expect(response.status).toBe(200);
 });
 
+test('rejects a legacy six-digit code before calling Supabase Auth', async () => {
+  const response = await POST(request({ email: 'owner@example.com', token: '123456' }));
+
+  expect(mocks.verifyOtp).not.toHaveBeenCalled();
+  expect(response.status).toBe(400);
+});
+
 test('rejects an invalid code without attempting allow-list access', async () => {
   mocks.verifyOtp.mockResolvedValue({ data: { user: null }, error: new Error('invalid token') });
 
