@@ -13,7 +13,7 @@ The required variable names are in `.env.example`. The code uses `NEXT_PUBLIC_SU
 
 ## Operations
 
-Read the [deployment guide](docs/deployment.md) before configuring a hosted service. Exact OAuth scopes and callbacks are in [OAuth setup](docs/oauth-setup.md); single-user magic-link safeguards are in [auth setup](docs/auth-setup.md).
+Read the [deployment guide](docs/deployment.md) before configuring a hosted service. Exact OAuth scopes and callbacks are in [OAuth setup](docs/oauth-setup.md); owner-managed e-mail code safeguards are in [auth setup](docs/auth-setup.md).
 
 ## Checks
 

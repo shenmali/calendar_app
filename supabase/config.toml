@@ -12,3 +12,7 @@ enable_anonymous_sign_ins = false
 
 [auth.email]
 enable_signup = false
+
+[auth.email.template.magic_link]
+subject = "Takvim giriş kodunuz"
+content_path = "./supabase/templates/magic-link.html"

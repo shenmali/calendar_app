@@ -27,7 +27,7 @@ export async function middleware(request: NextRequest) {
     return response;
   }
 
-  if (request.nextUrl.pathname === '/login' || request.nextUrl.pathname === '/auth/callback') {
+  if (request.nextUrl.pathname === '/login' || request.nextUrl.pathname === '/auth/callback' || request.nextUrl.pathname === '/auth/verify') {
     return response;
   }
 
