@@ -73,6 +73,20 @@ test('keeps the phone rail stationary when selecting a date in another month', a
   await expect.poll(() => rail.evaluate((element) => element.scrollLeft)).toBe(railScrollBeforeSelection);
 });
 
+test('reveals the newly selected January card after a phone year change', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/');
+
+  const rail = page.getByTestId('year-rail');
+  await rail.evaluate((element) => { element.scrollLeft = element.scrollWidth - element.clientWidth; });
+  await expect(rail.getByRole('heading', { name: 'Aralık 2026' })).toBeInViewport();
+
+  await page.getByRole('button', { name: 'Sonraki yıl' }).click();
+
+  await expect(page.getByRole('main', { name: '2027 yıllık takvim' })).toBeVisible();
+  await expect(rail.locator('[data-month="2027-01"][data-selected-month="0"]')).toBeInViewport();
+});
+
 test('uses immediate mobile detail reveal when reduced motion is requested', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.emulateMedia({ reducedMotion: 'reduce' });

@@ -17,6 +17,12 @@ function railOpeningTag(markup: string): string {
   return rail ?? '';
 }
 
+function selectedMonthOpeningTag(markup: string): string {
+  const selectedMonth = markup.match(/<[^>]*data-selected-month="0"[^>]*>/)?.[0];
+  expect(selectedMonth).toBeDefined();
+  return selectedMonth ?? '';
+}
+
 test('renders all months in chronological horizontal-rail order with a selected-month target', () => {
   const markup = renderToStaticMarkup(createElement(HorizontalYearRail, {
     eventsByDay: new Map([['2026-01-15', [event]]]),
@@ -33,5 +39,8 @@ test('renders all months in chronological horizontal-rail order with a selected-
     'Temmuz 2026', 'Ağustos 2026', 'Eylül 2026', 'Ekim 2026', 'Kasım 2026', 'Aralık 2026',
   ]);
   expect(markup).toContain('Aylar yatay olarak kaydırılabilir');
-  expect(markup).toMatch(/<section[^>]*data-selected-month="0"[^>]*>[\s\S]*?<h2[^>]*>Ocak 2026<\/h2>/);
+  const selectedMonth = selectedMonthOpeningTag(markup);
+  expect(selectedMonth).toContain('aria-labelledby="month-2026-01"');
+  expect(selectedMonth).toContain('data-month="2026-01"');
+  expect(markup).toMatch(/<h2[^>]*id="month-2026-01"[^>]*>Ocak 2026<\/h2>/);
 });

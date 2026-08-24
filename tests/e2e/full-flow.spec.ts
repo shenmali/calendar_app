@@ -12,7 +12,7 @@ test('downloads CSV for the filtered source from the annual calendar view', asyn
   await page.goto('/');
 
   await expect(page.getByRole('main', { name: /yıllık takvim/i })).toBeVisible();
-  await expect(page.getByTestId('year-grid')).toBeVisible();
+  await expect(page.getByTestId('year-rail')).toBeVisible();
 
   const sourceFilters = page.getByRole('group', { name: 'Kaynak filtreleri' });
   const selectedSource = sourceFilters.getByRole('checkbox', { name: sourceName! });

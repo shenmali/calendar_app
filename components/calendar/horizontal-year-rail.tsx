@@ -61,7 +61,7 @@ export function HorizontalYearRail({ months, eventsByDay, selectedDate, onSelect
             const monthKey = `${selectedYear}-${monthNumber}`;
             return (
               <MonthCard
-                className="w-[86vw] max-w-[22rem] shrink-0 snap-start scroll-mx-4 sm:w-[22rem]"
+                className="w-[86vw] min-w-[19.375rem] max-w-[22rem] shrink-0 snap-start scroll-mx-4 sm:w-[22rem]"
                 data-month={monthKey}
                 data-selected-month={month.month === selectedMonth ? month.month : undefined}
                 eventsByDay={eventsByDay}
