@@ -8,7 +8,7 @@ import { createClient } from '@/lib/supabase/server';
 
 const verificationSchema = z.object({
   email: z.string().trim().email().max(320),
-  token: z.string().trim().regex(/^\d{6}$/),
+  token: z.string().trim().regex(/^\d{8}$/),
 });
 
 const invalidCodeMessage = 'Kod doğrulanamadı. Lütfen yeni bir kod isteyin.';

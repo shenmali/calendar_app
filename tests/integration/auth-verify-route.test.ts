@@ -59,11 +59,11 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllEnvs());
 
 test('verifies an allowed email code, provisions the profile, and returns success', async () => {
-  const response = await POST(request({ email: ' owner@example.com ', token: '123456' }));
+  const response = await POST(request({ email: ' owner@example.com ', token: '12345678' }));
 
   expect(mocks.verifyOtp).toHaveBeenCalledWith({
     email: 'owner@example.com',
-    token: '123456',
+    token: '12345678',
     type: 'email',
   });
   expect(mocks.upsert).toHaveBeenCalledWith(
@@ -74,10 +74,21 @@ test('verifies an allowed email code, provisions the profile, and returns succes
   await expect(response.json()).resolves.toEqual({ ok: true });
 });
 
+test('verifies an eight-digit email code from hosted Supabase Auth', async () => {
+  const response = await POST(request({ email: 'owner@example.com', token: '12345678' }));
+
+  expect(mocks.verifyOtp).toHaveBeenCalledWith({
+    email: 'owner@example.com',
+    token: '12345678',
+    type: 'email',
+  });
+  expect(response.status).toBe(200);
+});
+
 test('rejects an invalid code without attempting allow-list access', async () => {
   mocks.verifyOtp.mockResolvedValue({ data: { user: null }, error: new Error('invalid token') });
 
-  const response = await POST(request({ email: 'owner@example.com', token: '000000' }));
+  const response = await POST(request({ email: 'owner@example.com', token: '00000000' }));
 
   expect(mocks.from).not.toHaveBeenCalled();
   expect(response.status).toBe(401);
@@ -96,7 +107,7 @@ test('rejects malformed payloads before attempting code verification', async () 
 test('signs out a verified code user with no active membership', async () => {
   mockAllowedUserLookup(false);
 
-  const response = await POST(request({ email: 'owner@example.com', token: '123456' }));
+  const response = await POST(request({ email: 'owner@example.com', token: '12345678' }));
 
   expect(mocks.signOut).toHaveBeenCalledOnce();
   expect(mocks.upsert).not.toHaveBeenCalled();
