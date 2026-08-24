@@ -15,6 +15,12 @@ const event: CalendarDisplayEvent = {
   startsAt: '2026-01-15T09:00:00.000Z', endsAt: '2026-01-15T10:00:00.000Z', isAllDay: false, status: 'confirmed', sourceIsSelected: true,
 };
 
+function railOpeningTag(markup: string): string {
+  const rail = markup.match(/<[^>]*data-testid="year-rail"[^>]*>/)?.[0];
+  expect(rail).toBeDefined();
+  return rail ?? '';
+}
+
 test('makes source filter labels a 44px touch target', () => {
   const markup = renderToStaticMarkup(createElement(SourceFilter, {
     onChange: () => undefined,
@@ -34,8 +40,10 @@ test('keeps populated day cells compact and touch-sized on mobile cards', () => 
 
   expect(markup).toContain('min-h-11');
   expect(markup).toContain('aria-pressed="true"');
-  expect(markup).toContain('aria-label="2 etkinlik"');
-  expect(markup).toContain('rounded-full');
+  const mobileEvents = markup.match(/<span class="sm:hidden" aria-label="2 etkinlik">([\s\S]*?)<\/span><span class="hidden sm:block">/)?.[1];
+  expect(mobileEvents).toBeDefined();
+  expect(mobileEvents).toMatch(/<span[^>]*aria-hidden="true"[^>]*class="[^"]*rounded-full[^"]*"[^>]*><\/span>/);
+  expect(mobileEvents).toContain('>2</span>');
 });
 
 test('makes the year rail keyboard-focusable with horizontal pan and snap affordances', () => {
@@ -46,10 +54,11 @@ test('makes the year rail keyboard-focusable with horizontal pan and snap afford
     selectedDate: '2026-01-15',
   }));
 
-  expect(markup).toContain('tabindex="0"');
-  expect(markup).toContain('overflow-x-auto');
-  expect(markup).toContain('snap-x');
-  expect(markup).toContain('snap-mandatory');
+  const rail = railOpeningTag(markup);
+  expect(rail).toContain('tabindex="0"');
+  expect(rail).toContain('overflow-x-auto');
+  expect(rail).toContain('snap-x');
+  expect(rail).toContain('snap-mandatory');
 });
 
 test('scrolls and focuses the selected-day detail panel on mobile selection', () => {
