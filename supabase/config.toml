@@ -1,0 +1,18 @@
+project_id = "personal-calendar"
+
+[auth]
+enabled = true
+site_url = "http://localhost:3000"
+additional_redirect_urls = [
+  "http://localhost:3000/auth/callback",
+  "http://127.0.0.1:3000/auth/callback",
+]
+enable_signup = false
+enable_anonymous_sign_ins = false
+
+[auth.email]
+enable_signup = false
+
+[auth.email.template.magic_link]
+subject = "Takvim giriş kodunuz"
+content_path = "./supabase/templates/magic-link.html"
