@@ -6,7 +6,7 @@ import { DayCell } from '@/components/calendar/day-cell';
 import { HorizontalYearRail } from '@/components/calendar/horizontal-year-rail';
 import { SourceFilter } from '@/components/calendar/source-filter';
 import { revealSelectedDayDetail } from '@/lib/calendar/detail-focus';
-import { selectCalendarDay } from '@/lib/calendar/day-selection';
+import { selectCalendarDay, shouldRevealSelectedMonth } from '@/lib/calendar/day-selection';
 import { buildYearMonths } from '@/lib/calendar/year-grid';
 import type { CalendarDisplayEvent } from '@/lib/calendar/types';
 
@@ -70,6 +70,24 @@ test('scrolls and focuses the selected-day detail panel on mobile selection', ()
 
   revealSelectedDayDetail(panel);
   expect(calls).toEqual(['smooth:start', 'focus:true']);
+});
+
+test('reveals the selected-day detail panel without animation for reduced motion', () => {
+  const calls: string[] = [];
+  const panel = {
+    scrollIntoView: (options: ScrollIntoViewOptions) => calls.push(`${options.behavior}:${options.block}`),
+    focus: (options: FocusOptions) => calls.push(`focus:${String(options.preventScroll)}`),
+  } as unknown as HTMLElement;
+
+  revealSelectedDayDetail(panel, true);
+  expect(calls).toEqual(['auto:start', 'focus:true']);
+});
+
+test('reveals selected months for desktop changes and only phone mount or year changes', () => {
+  expect(shouldRevealSelectedMonth({ isPhone: true, previousYear: null, selectedYear: '2026' })).toBe(true);
+  expect(shouldRevealSelectedMonth({ isPhone: true, previousYear: '2026', selectedYear: '2026' })).toBe(false);
+  expect(shouldRevealSelectedMonth({ isPhone: true, previousYear: '2026', selectedYear: '2027' })).toBe(true);
+  expect(shouldRevealSelectedMonth({ isPhone: false, previousYear: '2026', selectedYear: '2026' })).toBe(true);
 });
 
 test('reveals details even when tapping the already selected day', () => {

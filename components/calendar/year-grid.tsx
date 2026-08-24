@@ -128,7 +128,11 @@ export function YearGrid({ events, initialYear = 2026, lastSyncedAt }: YearGridP
       select: setSelectedDate,
       // Mobile focus announces the nearby live region without making the rail own focus.
       shouldReveal: () => window.matchMedia('(max-width: 767px)').matches && detailPanelRef.current !== null,
-      reveal: () => { if (detailPanelRef.current) revealSelectedDayDetail(detailPanelRef.current); },
+      reveal: () => {
+        if (detailPanelRef.current) {
+          revealSelectedDayDetail(detailPanelRef.current, window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+        }
+      },
     });
   }
 

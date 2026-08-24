@@ -3,6 +3,7 @@
 import React, { useEffect, useId, useRef } from 'react';
 
 import { MonthCard } from '@/components/calendar/month-card';
+import { shouldRevealSelectedMonth } from '@/lib/calendar/day-selection';
 import type { CalendarDisplayEvent } from '@/lib/calendar/types';
 import type { MonthModel } from '@/lib/calendar/year-grid';
 
@@ -16,11 +17,22 @@ type HorizontalYearRailProps = {
 export function HorizontalYearRail({ months, eventsByDay, selectedDate, onSelectDate }: HorizontalYearRailProps) {
   const instructionId = useId();
   const railRef = useRef<HTMLDivElement | null>(null);
+  const previousSelectedYearRef = useRef<string | null>(null);
   const selectedYear = selectedDate.slice(0, 4);
   const selectedMonth = Number(selectedDate.slice(5, 7)) - 1;
   const selectedMonthKey = selectedDate.slice(0, 7);
 
   useEffect(() => {
+    const isPhone = window.matchMedia('(max-width: 767px)').matches;
+    // Phone date taps keep the user-positioned rail stable; a year change still resets it.
+    const shouldReveal = shouldRevealSelectedMonth({
+      isPhone,
+      previousYear: previousSelectedYearRef.current,
+      selectedYear,
+    });
+    previousSelectedYearRef.current = selectedYear;
+    if (!shouldReveal) return;
+
     const selectedCard = railRef.current?.querySelector<HTMLElement>(`[data-month="${selectedMonthKey}"]`);
     if (!selectedCard) return;
 
@@ -30,7 +42,7 @@ export function HorizontalYearRail({ months, eventsByDay, selectedDate, onSelect
       block: 'nearest',
       inline: 'center',
     });
-  }, [selectedMonthKey]);
+  }, [selectedMonthKey, selectedYear]);
 
   return (
     <section aria-label="Yıllık takvim ayları" className="min-w-0">
