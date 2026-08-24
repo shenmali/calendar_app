@@ -28,23 +28,29 @@ export function CalendarToolbar({
 }: CalendarToolbarProps) {
   return (
     <nav aria-label="Takvim araçları" className="mb-5 rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="flex items-center gap-1" aria-label="Yıl seçici">
-          <button className="calendar-control" onClick={onPreviousYear} type="button" aria-label="Önceki yıl">‹</button>
-          <span aria-live="polite" className="min-w-16 text-center text-sm font-semibold tabular-nums">{year}</span>
-          <button className="calendar-control" onClick={onNextYear} type="button" aria-label="Sonraki yıl">›</button>
+      <div className="flex flex-col gap-2">
+        <div className="flex w-full flex-wrap items-center gap-2">
+          <div className="flex items-center gap-1" aria-label="Yıl seçici">
+            <button className="calendar-control" onClick={onPreviousYear} type="button" aria-label="Önceki yıl">‹</button>
+            <span aria-live="polite" className="min-w-16 text-center text-sm font-semibold tabular-nums">{year}</span>
+            <button className="calendar-control" onClick={onNextYear} type="button" aria-label="Sonraki yıl">›</button>
+          </div>
+          <button className="calendar-control" onClick={onToday} type="button">Bugün</button>
         </div>
-        <button className="calendar-control" onClick={onToday} type="button">Bugün</button>
-        <ViewSwitcher onChange={onViewChange} view={view} />
-        <button className="calendar-control" onClick={onConnections} type="button">Bağlantılar</button>
-        <span className="hidden h-6 w-px bg-slate-200 sm:block" aria-hidden="true" />
-        <SourceFilter sources={sources} selectedSourceIds={selectedSourceIds} onChange={onSourceChange} />
-        <div className="ml-auto flex items-center gap-2">
-          <span aria-live="polite" className="hidden text-xs text-slate-500 lg:inline">{formatSyncStatus(syncState, lastSyncedAt)}</span>
-          <button className="calendar-control bg-sky-700 text-white hover:bg-sky-800 disabled:bg-sky-400" disabled={syncState === 'syncing'} onClick={onRefresh} type="button">
-            {syncState === 'syncing' ? 'Yenileniyor…' : 'Yenile'}
-          </button>
-          <ExportMenu range={exportRange} sourceIds={selectedSourceIds} />
+        <div className="flex w-full min-w-0 flex-wrap items-center gap-2">
+          <ViewSwitcher onChange={onViewChange} view={view} />
+          <button className="calendar-control" onClick={onConnections} type="button">Bağlantılar</button>
+          <span className="hidden h-6 w-px bg-slate-200 sm:block" aria-hidden="true" />
+          <div className="w-full min-w-0 sm:w-auto">
+            <SourceFilter sources={sources} selectedSourceIds={selectedSourceIds} onChange={onSourceChange} />
+          </div>
+          <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto lg:ml-auto">
+            <span aria-live="polite" className="hidden text-xs text-slate-500 lg:inline">{formatSyncStatus(syncState, lastSyncedAt)}</span>
+            <button className="calendar-control bg-sky-700 text-white hover:bg-sky-800 disabled:bg-sky-400" disabled={syncState === 'syncing'} onClick={onRefresh} type="button">
+              {syncState === 'syncing' ? 'Yenileniyor…' : 'Yenile'}
+            </button>
+            <ExportMenu range={exportRange} sourceIds={selectedSourceIds} />
+          </div>
         </div>
       </div>
     </nav>

@@ -28,6 +28,25 @@ test('keeps the annual rail before selected-day details and focuses them on a ph
   });
   expect(scrollPosition.after).toBeGreaterThan(scrollPosition.before);
   await expect(headings.nth(11)).toBeInViewport();
+  await rail.evaluate((element) => { element.scrollLeft = 0; });
+  const railScrollBeforeSelection = await rail.evaluate((element) => element.scrollLeft);
   await day.click();
   await expect(details).toBeFocused();
+  expect(await rail.evaluate((element) => element.scrollLeft)).toBe(railScrollBeforeSelection);
+  await expect(details).toHaveCSS('padding', '12px');
+  await expect(details).toHaveCSS('position', 'static');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+
+  const today = page.getByRole('button', { name: 'Bugün' });
+  const secondaryControls = [
+    page.getByRole('group', { name: 'Takvim görünümü' }),
+    page.getByRole('button', { name: 'Bağlantılar' }),
+    page.getByRole('button', { name: 'Yenile' }),
+    page.getByText('Dışa Aktar', { exact: true }),
+  ];
+  const todayBox = await today.boundingBox();
+  for (const control of secondaryControls) {
+    const controlBox = await control.boundingBox();
+    expect(controlBox?.y).toBeGreaterThan((todayBox?.y ?? 0) + (todayBox?.height ?? 0));
+  }
 });

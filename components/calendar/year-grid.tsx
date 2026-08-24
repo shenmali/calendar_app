@@ -126,6 +126,7 @@ export function YearGrid({ events, initialYear = 2026, lastSyncedAt }: YearGridP
   function selectDate(date: string) {
     selectCalendarDay(date, {
       select: setSelectedDate,
+      // Mobile focus announces the nearby live region without making the rail own focus.
       shouldReveal: () => window.matchMedia('(max-width: 767px)').matches && detailPanelRef.current !== null,
       reveal: () => { if (detailPanelRef.current) revealSelectedDayDetail(detailPanelRef.current); },
     });
@@ -153,14 +154,16 @@ export function YearGrid({ events, initialYear = 2026, lastSyncedAt }: YearGridP
         view={view}
         year={year}
       />
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_19rem]">
+      <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_19rem] xl:gap-5">
         {view === 'year' ? (
-          <HorizontalYearRail eventsByDay={eventsByDay} months={months} onSelectDate={selectDate} selectedDate={selectedDate} />
+          <div className="calendar-year-rail order-1 min-w-0">
+            <HorizontalYearRail eventsByDay={eventsByDay} months={months} onSelectDate={selectDate} selectedDate={selectedDate} />
+          </div>
         ) : null}
         {view === 'month' ? <div className="order-2"><MonthView eventsByDay={eventsByDay} month={activeMonth} onSelectDate={selectDate} selectedDate={selectedDate} /></div> : null}
         {view === 'week' ? <div className="order-2"><WeekView events={filteredEvents} onSelectDate={selectDate} selectedDate={selectedDate} /></div> : null}
         {view === 'day' ? <div className="order-2"><DayView date={selectedDate} events={selectedEvents} /></div> : null}
-        {view !== 'day' ? <div className="order-1 xl:order-2"><EventDetailPanel date={selectedDate} events={selectedEvents} panelRef={detailPanelRef} /></div> : null}
+        {view !== 'day' ? <div className={view === 'year' ? 'order-2' : 'order-1 xl:order-2'}><EventDetailPanel date={selectedDate} events={selectedEvents} panelRef={detailPanelRef} /></div> : null}
       </div>
       {filteredEvents.length === 0 ? <p className="mt-4 text-sm text-slate-500">Bağlı takvimlerde gösterilecek etkinlik yok.</p> : null}
       <ConnectionsDialog onClose={() => setConnectionsOpen(false)} onConnectionDeleted={removeConnectionFromView} onSourceSelectionChange={updateConnectionSourceSelection} open={connectionsOpen} />

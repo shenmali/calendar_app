@@ -28,4 +28,34 @@
   .calendar-control {
     @apply inline-flex min-h-11 items-center justify-center rounded-md border border-slate-300 bg-white px-2.5 text-sm font-medium text-slate-700 shadow-sm transition hover:border-slate-400 hover:bg-slate-50 focus-visible:outline-sky-600;
   }
+
+  .calendar-year-rail [data-testid='year-rail'] {
+    scrollbar-color: #64748b #e2e8f0;
+    scrollbar-width: thin;
+  }
+
+  .calendar-year-rail [data-testid='year-rail']::-webkit-scrollbar {
+    height: 0.625rem;
+  }
+
+  .calendar-year-rail [data-testid='year-rail']::-webkit-scrollbar-track {
+    background: #e2e8f0;
+    border-radius: 9999px;
+  }
+
+  .calendar-year-rail [data-testid='year-rail']::-webkit-scrollbar-thumb {
+    background: #64748b;
+    border: 2px solid #e2e8f0;
+    border-radius: 9999px;
+  }
+
+  .calendar-year-rail [data-testid='year-rail']::-webkit-scrollbar-thumb:hover {
+    background: #475569;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .calendar-year-rail [data-testid='year-rail'] {
+    scroll-behavior: auto;
+  }
 }

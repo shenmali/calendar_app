@@ -63,3 +63,47 @@ test('keeps the annual rail horizontal and scrollable at intermediate breakpoint
     await expect(headings.nth(11)).toBeInViewport();
   }
 });
+
+test('lays out the desktop rail beside a fixed-width detail panel below the primary toolbar row', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto('/');
+
+  const today = page.getByRole('button', { name: 'Bugün' });
+  const viewSwitcher = page.getByRole('group', { name: 'Takvim görünümü' });
+  const rail = page.getByTestId('year-rail');
+  const details = page.getByRole('complementary', { name: 'Seçili gün ayrıntıları' });
+  const [todayBox, viewBox, railBox, detailBox] = await Promise.all([
+    today.boundingBox(),
+    viewSwitcher.boundingBox(),
+    rail.boundingBox(),
+    details.boundingBox(),
+  ]);
+
+  expect(viewBox?.y).toBeGreaterThan((todayBox?.y ?? 0) + (todayBox?.height ?? 0));
+  expect(detailBox?.x).toBeGreaterThan((railBox?.x ?? 0) + (railBox?.width ?? 0));
+  expect(detailBox?.width).toBeGreaterThanOrEqual(296);
+  expect(detailBox?.width).toBeLessThanOrEqual(312);
+  await expect(details).toHaveCSS('position', 'sticky');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+});
+
+test('reveals the selected month without animation when reduced motion is requested', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.addInitScript(() => {
+    const calls: Array<{ behavior?: ScrollBehavior; month?: string }> = [];
+    (window as unknown as { __yearRailScrollCalls: typeof calls }).__yearRailScrollCalls = calls;
+    Element.prototype.scrollIntoView = function scrollIntoView(options?: boolean | ScrollIntoViewOptions) {
+      calls.push({
+        behavior: typeof options === 'object' ? options.behavior : undefined,
+        month: this instanceof HTMLElement ? this.dataset.month : undefined,
+      });
+    };
+  });
+  await page.goto('/');
+
+  await page.getByRole('button', { name: '15 Mart 2026 gününü seç' }).evaluate((button) => (button as HTMLButtonElement).click());
+
+  await expect.poll(() => page.evaluate(() => (
+    window as unknown as { __yearRailScrollCalls: Array<{ behavior?: ScrollBehavior; month?: string }> }
+  ).__yearRailScrollCalls)).toContainEqual({ behavior: 'auto', month: '2026-03' });
+});
