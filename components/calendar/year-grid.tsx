@@ -142,9 +142,9 @@ export function YearGrid({ events, initialYear = 2026, lastSyncedAt }: YearGridP
 
   return (
     <main aria-label={`${year} yıllık takvim`} className="mx-auto max-w-[1680px] p-4 sm:p-6 lg:p-8">
-      <header className="mb-5">
+      <header className="mb-4">
         <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-sky-700">Kişisel planlayıcı</p>
-        <h1 className="mt-1 text-3xl font-semibold tracking-tight text-slate-900">{year} Yıllık Takvim</h1>
+        <h1 className="mt-1 text-2xl font-semibold tracking-tight text-slate-800">{year} Yıllık Takvim</h1>
       </header>
       <CalendarToolbar
         exportRange={activeExportRange(view, selectedDate, year)}
