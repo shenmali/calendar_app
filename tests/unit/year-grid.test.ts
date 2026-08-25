@@ -20,3 +20,12 @@ test('keeps every generated day inside its own month', () => {
   expect(dates[0]).toBe('2026-02-01');
   expect(dates.at(-1)).toBe('2026-02-28');
 });
+
+test('anchors the annual rail at the selected month while retaining every month', () => {
+  const buildFromSelectedMonth = buildYearMonths as unknown as (year: number, weekStartsOn: 1, selectedMonth: number) => ReturnType<typeof buildYearMonths>;
+  const months = buildFromSelectedMonth(2026, 1, 7);
+
+  expect(months.map((month) => month.month)).toEqual([7, 8, 9, 10, 11, 0, 1, 2, 3, 4, 5, 6]);
+  expect(months[0].label).toBe('Ağustos 2026');
+  expect(months.at(-1)?.label).toBe('Temmuz 2026');
+});

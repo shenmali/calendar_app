@@ -21,10 +21,10 @@ function isoDate(year: number, month: number, day: number): string {
 }
 
 /** Builds an environment-independent, Monday-first month grid using UTC dates only. */
-export function buildYearMonths(year: number, weekStartsOn: 1): MonthModel[] {
+export function buildYearMonths(year: number, weekStartsOn: 1, selectedMonth = 0): MonthModel[] {
   if (weekStartsOn !== 1) throw new Error('Only Monday-first calendars are supported');
 
-  return Array.from({ length: 12 }, (_, month): MonthModel => {
+  const months = Array.from({ length: 12 }, (_, month): MonthModel => {
     const firstWeekday = (new Date(Date.UTC(year, month, 1)).getUTCDay() + 6) % 7;
     const daysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
     const cells: DayModel[] = Array.from({ length: firstWeekday }, (_, index) => ({
@@ -45,4 +45,6 @@ export function buildYearMonths(year: number, weekStartsOn: 1): MonthModel[] {
     const weeks = Array.from({ length: cells.length / 7 }, (_, index) => cells.slice(index * 7, index * 7 + 7));
     return { month, label: `${TURKISH_MONTHS[month]} ${year}`, weeks };
   });
+  const firstMonth = ((selectedMonth % 12) + 12) % 12;
+  return [...months.slice(firstMonth), ...months.slice(0, firstMonth)];
 }

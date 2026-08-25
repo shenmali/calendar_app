@@ -15,7 +15,7 @@ import { WeekView } from '@/components/calendar/week-view';
 import { eventDateInIstanbul, groupEventsByDay, selectEvents } from '@/lib/calendar/event-selectors';
 import { activeExportRange } from '@/lib/calendar/export-range';
 import { revealSelectedDayDetail } from '@/lib/calendar/detail-focus';
-import { selectCalendarDay } from '@/lib/calendar/day-selection';
+import { moveCalendarMonth, selectCalendarDay } from '@/lib/calendar/day-selection';
 import { readManualSyncResult } from '@/lib/calendar/sync-refresh';
 import { initialSelectedSourceIds, reconcileSourceSelection, removeConnectionSourceIds } from '@/lib/calendar/source-selection';
 import { buildYearMonths } from '@/lib/calendar/year-grid';
@@ -64,12 +64,13 @@ export function YearGrid({ events, initialDate, lastSyncedAt }: YearGridProps) {
   const [selectedSourceIds, setSelectedSourceIds] = useState(() => initialSelectedSourceIds(sources));
   const [syncState, setSyncState] = useState<'idle' | 'syncing' | 'success' | 'partial' | 'error'>('idle');
   const [revealNonce, setRevealNonce] = useState(0);
-  const months = useMemo(() => buildYearMonths(year, 1), [year]);
+  const selectedMonthIndex = Number(selectedDate.slice(5, 7)) - 1;
+  const months = useMemo(() => buildYearMonths(year, 1, selectedMonthIndex), [year, selectedMonthIndex]);
   const filteredEvents = useMemo(() => selectEvents(events, { sourceIds: selectedSourceIds }), [events, selectedSourceIds]);
   const eventsByDay = useMemo(() => groupEventsByDay(filteredEvents), [filteredEvents]);
   const selectedEvents = eventsByDay.get(selectedDate) ?? [];
   const view = viewFromSearchParam(searchParams.get('view'));
-  const activeMonth = months[Number(selectedDate.slice(5, 7)) - 1];
+  const activeMonth = months.find((month) => month.month === selectedMonthIndex)!;
 
   useEffect(() => {
     const nextSelection = reconcileSourceSelection({
@@ -92,6 +93,13 @@ export function YearGrid({ events, initialDate, lastSyncedAt }: YearGridProps) {
     const today = getTodayInIstanbul();
     setYear(Number(today.slice(0, 4)));
     setSelectedDate(today);
+    setRevealNonce((current) => current + 1);
+  }
+
+  function changeMonth(amount: -1 | 1) {
+    const nextDate = moveCalendarMonth(selectedDate, amount);
+    setYear(Number(nextDate.slice(0, 4)));
+    setSelectedDate(nextDate);
     setRevealNonce((current) => current + 1);
   }
 
@@ -142,12 +150,18 @@ export function YearGrid({ events, initialDate, lastSyncedAt }: YearGridProps) {
 
   return (
     <main aria-label={`${year} yıllık takvim`} className="mx-auto max-w-[1680px] p-4 sm:p-6 lg:p-8">
-      <header className="mb-4">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-sky-700">Kişisel planlayıcı</p>
-        <h1 className="mt-1 text-2xl font-semibold tracking-tight text-slate-800">
-          {new Intl.DateTimeFormat('tr-TR', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/Istanbul' }).format(new Date(`${initialDate}T12:00:00Z`))}
-        </h1>
-        <p className="mt-1 text-sm text-slate-500">{year} Yıllık Takvim</p>
+      <header className="mb-4 flex items-end justify-between gap-4">
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-sky-700">Kişisel planlayıcı</p>
+          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-slate-800">
+            {new Intl.DateTimeFormat('tr-TR', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/Istanbul' }).format(new Date(`${selectedDate}T12:00:00Z`))}
+          </h1>
+          <p className="mt-1 text-sm text-slate-500">{year} Yıllık Takvim</p>
+        </div>
+        <div aria-label="Ay seçici" className="flex items-center gap-1">
+          <button className="calendar-control" onClick={() => changeMonth(-1)} type="button" aria-label="Önceki ay">‹</button>
+          <button className="calendar-control" onClick={() => changeMonth(1)} type="button" aria-label="Sonraki ay">›</button>
+        </div>
       </header>
       <CalendarToolbar
         exportRange={activeExportRange(view, selectedDate, year)}

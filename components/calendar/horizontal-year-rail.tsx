@@ -44,7 +44,7 @@ export function HorizontalYearRail({ months, eventsByDay, selectedDate, onSelect
     if (shouldReveal || forceReveal) {
       selectedCard.scrollIntoView({
         behavior: prefersReducedMotion ? 'auto' : 'smooth',
-        block: 'nearest',
+        block: 'start',
       });
       const selectedStrip = selectedCard.querySelector<HTMLElement>('[data-testid="month-day-strip"]');
       if (selectedStrip) revealDateInStrip(selectedStrip, selectedDate, prefersReducedMotion);
