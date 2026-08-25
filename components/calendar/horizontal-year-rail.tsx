@@ -57,7 +57,7 @@ export function HorizontalYearRail({ months, eventsByDay, selectedDate, onSelect
       <div
         aria-describedby={instructionId}
         aria-label="Yıllık gün şeritleri"
-        className="space-y-5"
+        className="space-y-4"
         data-testid="year-rail"
         ref={railRef}
       >
@@ -68,15 +68,15 @@ export function HorizontalYearRail({ months, eventsByDay, selectedDate, onSelect
           return (
             <section
               aria-labelledby={headingId}
-              className="relative scroll-mt-4"
+              className="relative scroll-mt-4 overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-[0_1px_3px_rgba(15,23,42,0.04)]"
               data-month={monthKey}
               data-selected-month={month.month === selectedMonth ? month.month : undefined}
               id={`year-${selectedYear}-month-${monthNumber}`}
               key={monthKey}
             >
-              <div className="mb-2 flex items-end justify-between gap-4">
-                <h2 className="text-base font-semibold tracking-tight text-slate-800" id={headingId}>{month.label}</h2>
-                <span aria-hidden="true" className="select-none text-4xl font-semibold leading-none tracking-tighter text-slate-100 sm:text-6xl">{String(month.month + 1).padStart(2, '0')}</span>
+              <div className="flex items-center justify-between gap-4 border-b border-slate-100 px-4 py-3">
+                <h2 className="text-sm font-semibold text-slate-700" id={headingId}>{month.label}</h2>
+                <span className="text-xs text-slate-400">{month.weeks.flat().filter((day) => day.date !== null).length} gün</span>
               </div>
               <MonthDayStrip eventsByDay={eventsByDay} headingId={headingId} instructionId={instructionId} month={month} onSelectDate={onSelectDate} selectedDate={selectedDate} />
               {month.month === selectedMonth ? selectedDayDetail : null}

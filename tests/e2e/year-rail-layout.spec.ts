@@ -19,7 +19,7 @@ async function renderAnnualRail(): Promise<string> {
   }
 }
 
-test('keeps narrow-phone annual day buttons touch-sized inside every month day strip', async ({ page }) => {
+test('keeps narrow-phone annual day buttons compact and touch-sized inside every month day strip', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 844 });
   await page.goto('/login');
   await page.locator('body').evaluate((body, markup) => { body.innerHTML = markup; }, await renderAnnualRail());
@@ -30,6 +30,7 @@ test('keeps narrow-phone annual day buttons touch-sized inside every month day s
     if (!dayBox) throw new Error(`January day button is missing at ${width}px`);
     expect(dayBox.width).toBeGreaterThanOrEqual(44);
     expect(dayBox.height).toBeGreaterThanOrEqual(44);
+    expect(dayBox.height).toBeLessThanOrEqual(108);
   }
 
   const rail = page.getByTestId('year-rail');

@@ -27,7 +27,7 @@ export function CalendarToolbar({
   year, sources, selectedSourceIds, syncState, lastSyncedAt, onPreviousYear, onNextYear, onToday, onSourceChange, onRefresh, view, onViewChange, onConnections, exportRange,
 }: CalendarToolbarProps) {
   return (
-    <nav aria-label="Takvim araçları" className="mb-6 border-b border-slate-200 pb-3">
+    <nav aria-label="Takvim araçları" className="mb-5 border-b border-slate-100 pb-3">
       <div className="flex flex-col gap-3">
         <div className="flex w-full flex-wrap items-center gap-2">
           <div className="flex items-center gap-1" aria-label="Yıl seçici">
