@@ -1,5 +1,5 @@
 import { decryptToken, encryptToken } from '@/lib/security/token-crypto';
-import type { CalendarConnection, CalendarEvent, CalendarEventCancellation, DateRange, SyncResult } from '@/lib/calendar/types';
+import type { CalendarConnection, CalendarEvent, CalendarEventCancellation, DateRange, RemoteCalendar, SyncResult } from '@/lib/calendar/types';
 import { allDayOverlapsRange } from '@/lib/calendar/time';
 import { googleCalendarProvider } from '@/lib/providers/google';
 import { microsoftCalendarProvider } from '@/lib/providers/microsoft';
@@ -12,6 +12,7 @@ export type WriteOutcome = 'imported' | 'updated';
 export interface SyncStore {
   loadConnection(connectionId: string): Promise<CalendarConnection | null>;
   listSelectedSources(connection: CalendarConnection): Promise<SelectedSource[]>;
+  initializeSources?(connection: CalendarConnection, calendars: RemoteCalendar[]): Promise<void>;
   createRun(connection: CalendarConnection, range: DateRange, startedAt: string): Promise<string>;
   finishRun(connection: CalendarConnection, runId: string, values: { status: 'success' | 'failed'; completedAt: string; errorMessage?: string }): Promise<void>;
   upsertEvent(event: CalendarEvent, sourceId: string): Promise<WriteOutcome>;
@@ -100,7 +101,13 @@ export function createSyncConnection({
       let removed = 0;
       const syncedAt = isoNow(now);
       const provider = providers[connection.provider];
-      for (const source of await store.listSelectedSources(connection)) {
+      let sources = await store.listSelectedSources(connection);
+      if (!sources.length && provider.listCalendars && store.initializeSources) {
+        await store.initializeSources(connection, await provider.listCalendars({ connection: effectiveConnection, accessToken }));
+        sources = await store.listSelectedSources(connection);
+      }
+      if (!sources.length) throw new Error('No calendar sources are available for synchronization');
+      for (const source of sources) {
         const remoteEvents = await provider.listEvents({ connection: effectiveConnection, calendarId: source.remoteCalendarId, range, accessToken });
         const remoteEventIds: string[] = [];
         for (const remoteEvent of remoteEvents) {
@@ -151,6 +158,22 @@ function defaultStore(): SyncStore {
         .eq('connection_id', connection.id).eq('user_id', connection.userId).eq('is_selected', true);
       if (error) throw new Error('Unable to load selected calendars');
       return (data ?? []).map((source) => ({ id: source.id, remoteCalendarId: source.remote_calendar_id }));
+    },
+    async initializeSources(connection, calendars) {
+      if (!calendars.length) throw new Error('No calendars were discovered');
+      const { error } = await (await client()).from('calendar_sources').upsert(calendars.map((calendar) => ({
+        user_id: connection.userId,
+        connection_id: connection.id,
+        remote_calendar_id: calendar.id,
+        name: calendar.name,
+        description: calendar.description ?? null,
+        time_zone: calendar.timeZone ?? null,
+        color: calendar.color ?? null,
+        is_primary: calendar.isSelected,
+        // `ignoreDuplicates` preserves a user's prior source choices after re-authentication.
+        is_selected: calendar.isSelected,
+      })), { onConflict: 'connection_id,remote_calendar_id', ignoreDuplicates: true });
+      if (error) throw new Error('Unable to save discovered calendars');
     },
     async createRun(connection, range, startedAt) {
       const { data, error } = await (await client()).from('sync_runs').insert({

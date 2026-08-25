@@ -23,7 +23,7 @@ import type { CalendarDisplayEvent } from '@/lib/calendar/types';
 
 type YearGridProps = {
   events: CalendarDisplayEvent[];
-  initialYear?: number;
+  initialDate: string;
   lastSyncedAt: string | null;
 };
 
@@ -50,12 +50,12 @@ function viewFromSearchParam(value: string | null): CalendarView {
   return value === 'month' || value === 'week' || value === 'day' ? value : 'year';
 }
 
-export function YearGrid({ events, initialYear = 2026, lastSyncedAt }: YearGridProps) {
+export function YearGrid({ events, initialDate, lastSyncedAt }: YearGridProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const [year, setYear] = useState(initialYear);
-  const [selectedDate, setSelectedDate] = useState(`${initialYear}-01-15`);
+  const [year, setYear] = useState(Number(initialDate.slice(0, 4)));
+  const [selectedDate, setSelectedDate] = useState(initialDate);
   const detailPanelRef = useRef<HTMLElement | null>(null);
   const [connectionsOpen, setConnectionsOpen] = useState(false);
   const sources = useMemo(() => sourceFilters(events), [events]);
@@ -144,7 +144,10 @@ export function YearGrid({ events, initialYear = 2026, lastSyncedAt }: YearGridP
     <main aria-label={`${year} yıllık takvim`} className="mx-auto max-w-[1680px] p-4 sm:p-6 lg:p-8">
       <header className="mb-4">
         <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-sky-700">Kişisel planlayıcı</p>
-        <h1 className="mt-1 text-2xl font-semibold tracking-tight text-slate-800">{year} Yıllık Takvim</h1>
+        <h1 className="mt-1 text-2xl font-semibold tracking-tight text-slate-800">
+          {new Intl.DateTimeFormat('tr-TR', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/Istanbul' }).format(new Date(`${initialDate}T12:00:00Z`))}
+        </h1>
+        <p className="mt-1 text-sm text-slate-500">{year} Yıllık Takvim</p>
       </header>
       <CalendarToolbar
         exportRange={activeExportRange(view, selectedDate, year)}

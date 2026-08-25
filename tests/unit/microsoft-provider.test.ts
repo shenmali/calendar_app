@@ -1,6 +1,6 @@
 import { expect, test, vi } from 'vitest';
 
-import { listMicrosoftEvents, normalizeMicrosoftEvent } from '@/lib/providers/microsoft';
+import { listMicrosoftCalendars, listMicrosoftEvents, normalizeMicrosoftEvent } from '@/lib/providers/microsoft';
 
 const context = {
   connection: { id: 'connection-2', userId: 'user-1', provider: 'microsoft' as const, encryptedAccessToken: 'cipher', encryptedRefreshToken: null },
@@ -35,6 +35,23 @@ test('lists Microsoft events only through the Graph calendarView endpoint with G
   expect(requestMethods).toEqual(['GET']);
   expect(fetchImpl.mock.calls[0][0].toString()).toContain('/v1.0/me/calendars/calendar-1/calendarView');
   expect(fetchImpl.mock.calls[0][1]?.headers).toMatchObject({ Prefer: expect.stringContaining('IdType="ImmutableId"') });
+});
+
+test('discovers Microsoft calendars with only the default source selected', async () => {
+  const fetchImpl = vi.fn(async (_url: RequestInfo | URL, init?: RequestInit) => {
+    expect(init?.method).toBe('GET');
+    expect(init?.headers).toMatchObject({ Prefer: expect.stringContaining('ImmutableId') });
+    return new Response(JSON.stringify({ value: [
+      { id: 'team', name: 'Ekip', color: 'lightBlue' },
+      { id: 'default', name: 'Takvim', isDefaultCalendar: true, color: 'auto' },
+    ] }), { status: 200 });
+  });
+
+  await expect(listMicrosoftCalendars({ accessToken: 'server-token', fetchImpl })).resolves.toEqual([
+    { id: 'team', name: 'Ekip', color: 'lightBlue', isSelected: false },
+    { id: 'default', name: 'Takvim', color: 'auto', isSelected: true },
+  ]);
+  expect(fetchImpl.mock.calls[0][0].toString()).toContain('/v1.0/me/calendars?$select=');
 });
 
 test('exhausts Graph calendarView pages with GET and immutable-id preference', async () => {

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 
 import { consumeOAuthState, oauthStateCookieName } from '@/lib/providers/oauth-state';
 import { appUrl, oauthClientCredentials, oauthRedirectUri } from '@/lib/providers/oauth';
+import { defaultSyncRange } from '@/lib/providers/sync-lock';
+import { syncConnection } from '@/lib/providers/sync';
 import { providerScopes, providerTokenEndpoints, type OAuthProvider } from '@/lib/providers/types';
 import { encryptToken } from '@/lib/security/token-crypto';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -120,7 +122,7 @@ export async function handleOAuthCallback(request: NextRequest, provider: OAuthP
     const refreshTokenCiphertext = tokens.refresh_token
       ? encryptToken(tokens.refresh_token)
       : existingConnection?.refresh_token_ciphertext ?? null;
-    const { error: writeError } = await createAdminClient().from('oauth_connections').upsert({
+    const { data: connection, error: writeError } = await createAdminClient().from('oauth_connections').upsert({
       user_id: user.id,
       provider,
       provider_account_id: providerAccountId,
@@ -128,8 +130,16 @@ export async function handleOAuthCallback(request: NextRequest, provider: OAuthP
       refresh_token_ciphertext: refreshTokenCiphertext,
       token_expires_at: expiresAt,
       scopes: providerScopes[provider],
-    }, { onConflict: 'provider,provider_account_id' });
-    if (writeError) throw new Error('Connection write failed');
+    }, { onConflict: 'provider,provider_account_id' }).select('id').single();
+    if (writeError || !connection) throw new Error('Connection write failed');
+
+    // A newly connected calendar should be visible immediately. The sync
+    // layer also repairs older connections that predate calendar sources.
+    try {
+      await syncConnection(connection.id, defaultSyncRange());
+    } catch {
+      // Preserve the completed connection so the user can retry with Yenile.
+    }
     return clearOAuthCookies(NextResponse.redirect(safeAppUrl), provider);
   } catch {
     return errorRedirect(provider);

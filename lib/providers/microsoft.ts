@@ -1,5 +1,5 @@
 import { isoDate, isoInstant, rangeToIsoInstants } from '@/lib/calendar/time';
-import type { NormalizeContext, NormalizedCalendarEvent, RemoteEvent } from '@/lib/calendar/types';
+import type { NormalizeContext, NormalizedCalendarEvent, RemoteCalendar, RemoteEvent } from '@/lib/calendar/types';
 import type { CalendarProviderClient } from '@/lib/providers/types';
 
 type Fetch = typeof fetch;
@@ -9,6 +9,7 @@ type MicrosoftEvent = {
   isCancelled?: boolean; isAllDay?: boolean; start?: MicrosoftDateTime; end?: MicrosoftDateTime;
   lastModifiedDateTime?: string; seriesMasterId?: string; originalStart?: string; recurrence?: { pattern?: { type?: string; interval?: number; daysOfWeek?: string[]; dayOfMonth?: number; month?: number; index?: string }; range?: { type?: string; startDate?: string; endDate?: string; numberOfOccurrences?: number } };
 };
+type MicrosoftCalendar = { id?: string; name?: string; isDefaultCalendar?: boolean; color?: string; canEdit?: boolean };
 
 const weekday: Record<string, string> = { sunday: 'SU', monday: 'MO', tuesday: 'TU', wednesday: 'WE', thursday: 'TH', friday: 'FR', saturday: 'SA' };
 const bySetPosition: Record<string, string> = { first: '1', second: '2', third: '3', fourth: '4', last: '-1' };
@@ -97,7 +98,41 @@ export async function listMicrosoftEvents({
   return events;
 }
 
+/** Lists Microsoft calendar containers with GET requests only. */
+export async function listMicrosoftCalendars({ accessToken, fetchImpl = fetch }: { accessToken: string; fetchImpl?: Fetch }): Promise<RemoteCalendar[]> {
+  const calendars: RemoteCalendar[] = [];
+  const seenLinks = new Set<string>();
+  let nextLink: string | undefined;
+  do {
+    const url = nextLink ?? 'https://graph.microsoft.com/v1.0/me/calendars?$select=id,name,isDefaultCalendar,color,canEdit';
+    const response = await fetchImpl(url, {
+      method: 'GET', headers: { Authorization: `Bearer ${accessToken}`, Prefer: 'IdType="ImmutableId"' }, cache: 'no-store',
+    });
+    if (!response.ok) throw new Error(`Microsoft calendar listing failed (${response.status})`);
+    const payload = await response.json() as { value?: unknown; '@odata.nextLink'?: unknown };
+    if (Array.isArray(payload.value)) {
+      for (const item of payload.value) {
+        const calendar = item as MicrosoftCalendar;
+        if (!calendar.id) continue;
+        calendars.push({
+          id: calendar.id,
+          name: calendar.name || calendar.id,
+          color: calendar.color ?? null,
+          isSelected: calendar.isDefaultCalendar === true,
+        });
+      }
+    }
+    nextLink = typeof payload['@odata.nextLink'] === 'string' && payload['@odata.nextLink'] ? payload['@odata.nextLink'] : undefined;
+    if (nextLink && seenLinks.has(nextLink)) throw new Error('Microsoft calendar listing returned a repeated next link');
+    if (nextLink) seenLinks.add(nextLink);
+  } while (nextLink);
+  if (!calendars.length) throw new Error('Microsoft calendar listing returned no calendars');
+  if (!calendars.some((calendar) => calendar.isSelected)) calendars[0].isSelected = true;
+  return calendars;
+}
+
 export const microsoftCalendarProvider: CalendarProviderClient = {
+  listCalendars: ({ accessToken }) => listMicrosoftCalendars({ accessToken }),
   listEvents: (input) => listMicrosoftEvents(input),
   normalizeEvent: normalizeMicrosoftEvent,
 };

@@ -1,4 +1,5 @@
 import { YearGrid } from '@/components/calendar/year-grid';
+import { eventDateInIstanbul } from '@/lib/calendar/event-selectors';
 import { loadCalendarDataForUser } from '@/lib/calendar/server-data-loader';
 import { createClient } from '@/lib/supabase/server';
 
@@ -11,5 +12,6 @@ export default async function CalendarPage() {
   if (!user) return null;
 
   const calendarData = await loadCalendarDataForUser(user.id);
-  return <YearGrid events={calendarData.events} initialYear={2026} lastSyncedAt={calendarData.lastSyncedAt} />;
+  const initialDate = eventDateInIstanbul({ startsAt: new Date().toISOString(), isAllDay: false });
+  return <YearGrid events={calendarData.events} initialDate={initialDate} lastSyncedAt={calendarData.lastSyncedAt} />;
 }

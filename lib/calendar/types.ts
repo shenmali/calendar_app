@@ -73,6 +73,10 @@ export interface CalendarConnection {
 export interface RemoteCalendar {
   id: string;
   name: string;
+  description?: string | null;
+  timeZone?: string | null;
+  color?: string | null;
+  /** The provider's primary/default calendar. */
   isSelected: boolean;
 }
 

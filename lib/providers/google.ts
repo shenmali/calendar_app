@@ -1,5 +1,5 @@
 import { isoDate, isoInstant, rangeToIsoInstants } from '@/lib/calendar/time';
-import type { CalendarEventCancellation, NormalizeContext, NormalizedCalendarEvent, RemoteEvent } from '@/lib/calendar/types';
+import type { CalendarEventCancellation, NormalizeContext, NormalizedCalendarEvent, RemoteCalendar, RemoteEvent } from '@/lib/calendar/types';
 import type { CalendarProviderClient } from '@/lib/providers/types';
 
 type Fetch = typeof fetch;
@@ -7,6 +7,9 @@ type GoogleDate = { date?: string; dateTime?: string; timeZone?: string };
 type GoogleEvent = {
   id?: string; etag?: string; status?: string; summary?: string; description?: string; location?: string;
   start?: GoogleDate; end?: GoogleDate; updated?: string; recurrence?: string[]; recurringEventId?: string; originalStartTime?: GoogleDate;
+};
+type GoogleCalendar = {
+  id?: string; summary?: string; description?: string; timeZone?: string; backgroundColor?: string; primary?: boolean;
 };
 
 function eventPayload(input: GoogleEvent | RemoteEvent): GoogleEvent {
@@ -97,7 +100,42 @@ export async function listGoogleEvents({
   return events;
 }
 
+/** Lists Google calendar containers with GET requests only. */
+export async function listGoogleCalendars({ accessToken, fetchImpl = fetch }: { accessToken: string; fetchImpl?: Fetch }): Promise<RemoteCalendar[]> {
+  const calendars: RemoteCalendar[] = [];
+  const seenTokens = new Set<string>();
+  let pageToken: string | undefined;
+  do {
+    const url = new URL('https://www.googleapis.com/calendar/v3/users/me/calendarList');
+    if (pageToken) url.searchParams.set('pageToken', pageToken);
+    const response = await fetchImpl(url, { method: 'GET', headers: { Authorization: `Bearer ${accessToken}` }, cache: 'no-store' });
+    if (!response.ok) throw new Error(`Google calendar listing failed (${response.status})`);
+    const payload = await response.json() as { items?: unknown; nextPageToken?: unknown };
+    if (Array.isArray(payload.items)) {
+      for (const item of payload.items) {
+        const calendar = item as GoogleCalendar;
+        if (!calendar.id) continue;
+        calendars.push({
+          id: calendar.id,
+          name: calendar.summary || calendar.id,
+          description: calendar.description ?? null,
+          timeZone: calendar.timeZone ?? null,
+          color: calendar.backgroundColor ?? null,
+          isSelected: calendar.primary === true,
+        });
+      }
+    }
+    pageToken = typeof payload.nextPageToken === 'string' && payload.nextPageToken ? payload.nextPageToken : undefined;
+    if (pageToken && seenTokens.has(pageToken)) throw new Error('Google calendar listing returned a repeated page token');
+    if (pageToken) seenTokens.add(pageToken);
+  } while (pageToken);
+  if (!calendars.length) throw new Error('Google calendar listing returned no calendars');
+  if (!calendars.some((calendar) => calendar.isSelected)) calendars[0].isSelected = true;
+  return calendars;
+}
+
 export const googleCalendarProvider: CalendarProviderClient = {
+  listCalendars: ({ accessToken }) => listGoogleCalendars({ accessToken }),
   listEvents: (input) => listGoogleEvents(input),
   normalizeEvent: normalizeGoogleEvent,
 };
