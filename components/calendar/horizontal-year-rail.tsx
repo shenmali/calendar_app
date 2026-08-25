@@ -2,8 +2,9 @@
 
 import React, { useEffect, useId, useRef } from 'react';
 
-import { MonthCard } from '@/components/calendar/month-card';
+import { MonthDayStrip } from '@/components/calendar/month-day-strip';
 import { shouldRevealSelectedMonth } from '@/lib/calendar/day-selection';
+import { revealDateInStrip } from '@/lib/calendar/day-strip-reveal';
 import type { CalendarDisplayEvent } from '@/lib/calendar/types';
 import type { MonthModel } from '@/lib/calendar/year-grid';
 
@@ -12,12 +13,15 @@ type HorizontalYearRailProps = {
   eventsByDay: Map<string, CalendarDisplayEvent[]>;
   selectedDate: string;
   onSelectDate: (date: string) => void;
+  selectedDayDetail?: React.ReactNode;
+  revealNonce?: number;
 };
 
-export function HorizontalYearRail({ months, eventsByDay, selectedDate, onSelectDate }: HorizontalYearRailProps) {
+export function HorizontalYearRail({ months, eventsByDay, selectedDate, onSelectDate, selectedDayDetail, revealNonce = 0 }: HorizontalYearRailProps) {
   const instructionId = useId();
   const railRef = useRef<HTMLDivElement | null>(null);
   const previousSelectedYearRef = useRef<string | null>(null);
+  const previousRevealNonceRef = useRef(revealNonce);
   const selectedYear = selectedDate.slice(0, 4);
   const selectedMonth = Number(selectedDate.slice(5, 7)) - 1;
   const selectedMonthKey = selectedDate.slice(0, 7);
@@ -31,50 +35,54 @@ export function HorizontalYearRail({ months, eventsByDay, selectedDate, onSelect
       selectedYear,
     });
     previousSelectedYearRef.current = selectedYear;
-    if (!shouldReveal) return;
-
+    const forceReveal = previousRevealNonceRef.current !== revealNonce;
+    previousRevealNonceRef.current = revealNonce;
     const selectedCard = railRef.current?.querySelector<HTMLElement>(`[data-month="${selectedMonthKey}"]`);
     if (!selectedCard) return;
 
     const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    selectedCard.scrollIntoView({
-      behavior: prefersReducedMotion ? 'auto' : 'smooth',
-      block: 'nearest',
-      inline: 'center',
-    });
-  }, [selectedMonthKey, selectedYear]);
+    if (shouldReveal || forceReveal) {
+      selectedCard.scrollIntoView({
+        behavior: prefersReducedMotion ? 'auto' : 'smooth',
+        block: 'nearest',
+      });
+      const selectedStrip = selectedCard.querySelector<HTMLElement>('[data-testid="month-day-strip"]');
+      if (selectedStrip) revealDateInStrip(selectedStrip, selectedDate, prefersReducedMotion);
+    }
+  }, [revealNonce, selectedDate, selectedMonthKey, selectedYear]);
 
   return (
     <section aria-label="Yıllık takvim ayları" className="min-w-0">
-      <p className="mb-2 text-xs text-slate-500" id={instructionId}>Aylar yatay olarak kaydırılabilir</p>
+      <p className="mb-4 text-xs text-slate-500" id={instructionId}>Her ayın günleri yatay olarak kaydırılabilir</p>
       <div
         aria-describedby={instructionId}
-        aria-label="Yıl ayları"
-        className="-mx-4 snap-x snap-mandatory overflow-x-auto overscroll-x-contain pb-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-600 sm:mx-0"
+        aria-label="Yıllık gün şeritleri"
+        className="space-y-5"
         data-testid="year-rail"
         ref={railRef}
-        tabIndex={0}
       >
-        <div className="flex w-max flex-nowrap gap-3 px-4 pb-2 sm:px-1">
-          {months.map((month) => {
-            const monthNumber = String(month.month + 1).padStart(2, '0');
-            const monthKey = `${selectedYear}-${monthNumber}`;
-            return (
-              <MonthCard
-                className="w-[86vw] min-w-[19.375rem] max-w-[22rem] shrink-0 snap-start scroll-mx-4 sm:w-[22rem]"
-                data-month={monthKey}
-                data-selected-month={month.month === selectedMonth ? month.month : undefined}
-                eventsByDay={eventsByDay}
-                headingId={`month-${selectedYear}-${monthNumber}`}
-                id={`year-${selectedYear}-month-${monthNumber}`}
-                key={monthKey}
-                month={month}
-                onSelectDate={onSelectDate}
-                selectedDate={selectedDate}
-              />
-            );
-          })}
-        </div>
+        {months.map((month) => {
+          const monthNumber = String(month.month + 1).padStart(2, '0');
+          const monthKey = `${selectedYear}-${monthNumber}`;
+          const headingId = `month-${selectedYear}-${monthNumber}`;
+          return (
+            <section
+              aria-labelledby={headingId}
+              className="relative scroll-mt-4"
+              data-month={monthKey}
+              data-selected-month={month.month === selectedMonth ? month.month : undefined}
+              id={`year-${selectedYear}-month-${monthNumber}`}
+              key={monthKey}
+            >
+              <div className="mb-2 flex items-end justify-between gap-4">
+                <h2 className="text-base font-semibold tracking-tight text-slate-800" id={headingId}>{month.label}</h2>
+                <span aria-hidden="true" className="select-none text-4xl font-semibold leading-none tracking-tighter text-slate-100 sm:text-6xl">{String(month.month + 1).padStart(2, '0')}</span>
+              </div>
+              <MonthDayStrip eventsByDay={eventsByDay} headingId={headingId} instructionId={instructionId} month={month} onSelectDate={onSelectDate} selectedDate={selectedDate} />
+              {month.month === selectedMonth ? selectedDayDetail : null}
+            </section>
+          );
+        })}
       </div>
     </section>
   );

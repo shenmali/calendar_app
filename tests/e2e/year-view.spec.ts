@@ -17,17 +17,13 @@ test('shows an accessible annual rail and selected-day details without create co
   const selectedMonth = rail.locator('[data-selected-month="0"]');
   await expect(rail.getByRole('heading', { level: 2 })).toHaveCount(12);
   await expect(selectedMonth).toBeVisible();
-  expect(await rail.evaluate((element) => element.scrollWidth > element.clientWidth)).toBe(true);
+  expect(await rail.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+  expect(await page.getByTestId('month-day-strip').first().evaluate((element) => element.scrollWidth > element.clientWidth)).toBe(true);
   const [firstMonth, thirdMonth] = await Promise.all([
     rail.getByRole('heading', { level: 2 }).nth(0).boundingBox(),
     rail.getByRole('heading', { level: 2 }).nth(2).boundingBox(),
   ]);
-  expect(firstMonth?.y).toBe(thirdMonth?.y);
-  expect(await rail.evaluate((element) => {
-    element.scrollLeft = element.scrollWidth - element.clientWidth;
-    return element.scrollLeft;
-  })).toBeGreaterThan(0);
-  await expect(rail.getByRole('heading', { level: 2 }).nth(11)).toBeInViewport();
+  expect(thirdMonth?.y).toBeGreaterThan(firstMonth?.y ?? Number.NEGATIVE_INFINITY);
   await page.getByRole('button', { name: '15 Ocak 2026 gününü seç' }).click();
   await expect(page.getByRole('heading', { name: '15 Ocak 2026' })).toBeVisible();
   await expect(page.getByText('Yeni Etkinlik')).toHaveCount(0);
@@ -39,7 +35,7 @@ test('shows an accessible annual rail and selected-day details without create co
   await expect(page.getByTestId('year-rail')).toBeVisible();
 });
 
-test('keeps the annual rail horizontal and scrollable at intermediate breakpoints', async ({ page }) => {
+test('keeps every monthly day strip horizontal and scrollable at intermediate breakpoints', async ({ page }) => {
   await page.goto('/');
 
   const rail = page.getByTestId('year-rail');
@@ -50,17 +46,12 @@ test('keeps the annual rail horizontal and scrollable at intermediate breakpoint
     await page.setViewportSize({ width, height: 1000 });
     await expect(rail).toBeVisible();
     await expect(selectedMonth).toBeVisible();
-    expect(await rail.evaluate((element) => element.scrollWidth > element.clientWidth)).toBe(true);
+    expect(await rail.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+    const strips = page.getByTestId('month-day-strip');
+    expect(await strips.count()).toBe(12);
+    expect(await strips.first().evaluate((element) => element.scrollWidth > element.clientWidth)).toBe(true);
     const [firstMonth, thirdMonth] = await Promise.all([headings.nth(0).boundingBox(), headings.nth(2).boundingBox()]);
-    expect(firstMonth?.y).toBe(thirdMonth?.y);
-    const scrollPosition = await rail.evaluate((element) => {
-      element.scrollLeft = 0;
-      const before = element.scrollLeft;
-      element.scrollLeft = element.scrollWidth - element.clientWidth;
-      return { after: element.scrollLeft, before };
-    });
-    expect(scrollPosition.after).toBeGreaterThan(scrollPosition.before);
-    await expect(headings.nth(11)).toBeInViewport();
+    expect(thirdMonth?.y).toBeGreaterThan(firstMonth?.y ?? Number.NEGATIVE_INFINITY);
   }
 });
 
