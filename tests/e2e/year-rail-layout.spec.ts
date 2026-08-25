@@ -19,7 +19,7 @@ async function renderAnnualRail(): Promise<string> {
   }
 }
 
-test('keeps narrow-phone annual day buttons touch-sized with a next-card affordance when space allows', async ({ page }) => {
+test('keeps narrow-phone annual day buttons touch-sized inside every month day strip', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 844 });
   await page.goto('/login');
   await page.locator('body').evaluate((body, markup) => { body.innerHTML = markup; }, await renderAnnualRail());
@@ -33,9 +33,13 @@ test('keeps narrow-phone annual day buttons touch-sized with a next-card afforda
   }
 
   const rail = page.getByTestId('year-rail');
-  expect(await rail.evaluate((element) => element.scrollWidth > element.clientWidth)).toBe(true);
-  const februaryBox = await rail.locator('[data-month="2026-02"]').boundingBox();
-  if (!februaryBox) throw new Error('February card is missing at 360px');
-  expect(februaryBox.x).toBeLessThan(360);
+  const monthStrips = page.getByTestId('month-day-strip');
+  expect(await monthStrips.count()).toBe(12);
+  expect(await monthStrips.first().evaluate((element) => element.scrollWidth > element.clientWidth)).toBe(true);
+  const januaryBox = await monthStrips.first().boundingBox();
+  const februaryBox = await monthStrips.nth(1).boundingBox();
+  if (!januaryBox || !februaryBox) throw new Error('Month day strips are missing at 360px');
+  expect(februaryBox.y).toBeGreaterThan(januaryBox.y);
+  expect(await rail.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
 });

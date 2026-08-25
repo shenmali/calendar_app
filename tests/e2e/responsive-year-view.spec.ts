@@ -19,21 +19,16 @@ test('keeps the annual rail before selected-day details and focuses them on a ph
   await expect(day).toHaveCSS('min-height', '44px');
   const headings = rail.getByRole('heading', { level: 2 });
   const [firstMonth, secondMonth] = await Promise.all([headings.nth(0).boundingBox(), headings.nth(1).boundingBox()]);
-  expect(secondMonth?.x).toBeGreaterThan(firstMonth?.x ?? Number.POSITIVE_INFINITY);
-  expect(secondMonth?.y).toBe(firstMonth?.y);
-  const scrollPosition = await rail.evaluate((element) => {
-    const before = element.scrollLeft;
-    element.scrollLeft = element.scrollWidth - element.clientWidth;
-    return { after: element.scrollLeft, before };
-  });
-  expect(scrollPosition.after).toBeGreaterThan(scrollPosition.before);
-  await expect(headings.nth(11)).toBeInViewport();
-  await rail.evaluate((element) => { element.scrollLeft = 0; });
-  const railScrollBeforeSelection = await rail.evaluate((element) => element.scrollLeft);
+  expect(secondMonth?.y).toBeGreaterThan(firstMonth?.y ?? Number.NEGATIVE_INFINITY);
+  expect(secondMonth?.x).toBe(firstMonth?.x);
+  const januaryStrip = page.getByTestId('month-day-strip').first();
+  expect(await januaryStrip.evaluate((element) => element.scrollWidth > element.clientWidth)).toBe(true);
+  await januaryStrip.evaluate((element) => { element.scrollLeft = 1000; });
+  const stripScrollBeforeSelection = await januaryStrip.evaluate((element) => element.scrollLeft);
   await day.click();
   await expect(details).toBeFocused();
-  expect(await rail.evaluate((element) => element.scrollLeft)).toBe(railScrollBeforeSelection);
-  await expect(details).toHaveCSS('padding', '12px');
+  expect(await januaryStrip.evaluate((element) => element.scrollLeft)).toBe(stripScrollBeforeSelection);
+  await expect(details).toHaveCSS('padding', '16px');
   await expect(details).toHaveCSS('position', 'static');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
 
@@ -51,34 +46,29 @@ test('keeps the annual rail before selected-day details and focuses them on a ph
   }
 });
 
-test('keeps the phone rail stationary when selecting a date in another month', async ({ page }) => {
+test('keeps a phone month day strip stationary when selecting a date', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/');
 
-  const rail = page.getByTestId('year-rail');
   const details = page.getByRole('complementary', { name: 'Seçili gün ayrıntıları' });
-  const februaryDay = page.getByRole('button', { name: '15 Şubat 2026 gününü seç' });
-  await rail.evaluate((element) => {
-    const february = element.querySelector<HTMLElement>('[data-month="2026-02"]');
-    if (!february) throw new Error('February card is missing');
-    element.scrollLeft = february.offsetLeft;
-  });
+  const februaryDay = page.getByRole('button', { name: '2 Şubat 2026 gününü seç' });
+  const februaryStrip = page.getByTestId('month-day-strip').nth(1);
+  await februaryStrip.evaluate((element) => { element.scrollLeft = 48; });
 
-  await expect(februaryDay).toBeInViewport();
-  const railScrollBeforeSelection = await rail.evaluate((element) => element.scrollLeft);
+  const stripScrollBeforeSelection = await februaryStrip.evaluate((element) => element.scrollLeft);
   await februaryDay.click();
 
-  await expect(page.getByRole('heading', { name: '15 Şubat 2026' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '2 Şubat 2026' })).toBeVisible();
   await expect(details).toBeFocused();
-  await expect.poll(() => rail.evaluate((element) => element.scrollLeft)).toBe(railScrollBeforeSelection);
+  await expect.poll(() => februaryStrip.evaluate((element) => element.scrollLeft)).toBe(stripScrollBeforeSelection);
 });
 
-test('reveals the newly selected January card after a phone year change', async ({ page }) => {
+test('reveals the newly selected January strip after a phone year change', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/');
 
   const rail = page.getByTestId('year-rail');
-  await rail.evaluate((element) => { element.scrollLeft = element.scrollWidth - element.clientWidth; });
+  await page.getByRole('heading', { name: 'Aralık 2026' }).scrollIntoViewIfNeeded();
   await expect(rail.getByRole('heading', { name: 'Aralık 2026' })).toBeInViewport();
 
   await page.getByRole('button', { name: 'Sonraki yıl' }).click();

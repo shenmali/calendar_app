@@ -46,7 +46,7 @@ test('keeps populated day cells compact and touch-sized on mobile cards', () => 
   expect(mobileEvents).toContain('>2</span>');
 });
 
-test('makes the year rail keyboard-focusable with horizontal pan and snap affordances', () => {
+test('makes every monthly day strip keyboard-focusable for horizontal panning', () => {
   const markup = renderToStaticMarkup(createElement(HorizontalYearRail, {
     eventsByDay: new Map([['2026-01-15', [event]]]),
     months: buildYearMonths(2026, 1),
@@ -54,11 +54,10 @@ test('makes the year rail keyboard-focusable with horizontal pan and snap afford
     selectedDate: '2026-01-15',
   }));
 
-  const rail = railOpeningTag(markup);
-  expect(rail).toContain('tabindex="0"');
-  expect(rail).toContain('overflow-x-auto');
-  expect(rail).toContain('snap-x');
-  expect(rail).toContain('snap-mandatory');
+  expect(railOpeningTag(markup)).toContain('aria-label="Yıllık gün şeritleri"');
+  expect([...markup.matchAll(/data-testid="month-day-strip"/g)]).toHaveLength(12);
+  expect([...markup.matchAll(/data-testid="month-day-strip"[^>]*tabindex="0"/g)]).toHaveLength(12);
+  expect(markup).toContain('overflow-x-auto');
 });
 
 test('scrolls and focuses the selected-day detail panel on mobile selection', () => {

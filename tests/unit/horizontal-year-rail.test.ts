@@ -23,7 +23,7 @@ function selectedMonthOpeningTag(markup: string): string {
   return selectedMonth ?? '';
 }
 
-test('renders all months in chronological horizontal-rail order with a selected-month target', () => {
+test('renders chronological months as separate horizontal day strips', () => {
   const markup = renderToStaticMarkup(createElement(HorizontalYearRail, {
     eventsByDay: new Map([['2026-01-15', [event]]]),
     months: buildYearMonths(2026, 1),
@@ -32,13 +32,16 @@ test('renders all months in chronological horizontal-rail order with a selected-
   }));
 
   const rail = railOpeningTag(markup);
-  expect(rail).toContain('aria-label="Yıl ayları"');
+  expect(rail).toContain('aria-label="Yıllık gün şeritleri"');
   expect(rail).toContain('data-testid="year-rail"');
   expect([...markup.matchAll(/<h2[^>]*>([^<]+)<\/h2>/g)].map((match) => match[1])).toEqual([
     'Ocak 2026', 'Şubat 2026', 'Mart 2026', 'Nisan 2026', 'Mayıs 2026', 'Haziran 2026',
     'Temmuz 2026', 'Ağustos 2026', 'Eylül 2026', 'Ekim 2026', 'Kasım 2026', 'Aralık 2026',
   ]);
-  expect(markup).toContain('Aylar yatay olarak kaydırılabilir');
+  expect(markup).toContain('Her ayın günleri yatay olarak kaydırılabilir');
+  expect([...markup.matchAll(/data-testid="month-day-strip"/g)]).toHaveLength(12);
+  expect(markup).not.toContain('grid-cols-7');
+  expect(markup).toContain('15 Ocak 2026 gününü seç');
   const selectedMonth = selectedMonthOpeningTag(markup);
   expect(selectedMonth).toContain('aria-labelledby="month-2026-01"');
   expect(selectedMonth).toContain('data-month="2026-01"');

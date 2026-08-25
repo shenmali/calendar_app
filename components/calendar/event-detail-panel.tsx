@@ -17,7 +17,7 @@ function dateHeading(date: string): string {
 
 export function EventDetailPanel({ date, events, panelRef }: EventDetailPanelProps) {
   return (
-    <aside aria-label="Seçili gün ayrıntıları" aria-live="polite" className="h-fit rounded-xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4 xl:sticky xl:top-4" ref={panelRef} tabIndex={-1}>
+    <aside aria-label="Seçili gün ayrıntıları" aria-live="polite" className="h-fit border-t-2 border-sky-600 bg-white p-4 shadow-sm xl:sticky xl:top-6" ref={panelRef} tabIndex={-1}>
       <p className="text-xs font-semibold uppercase tracking-wide text-sky-700">Seçili gün</p>
       <h2 className="mt-1 text-lg font-semibold text-slate-900">{dateHeading(date)}</h2>
       {events.length === 0 ? (

@@ -137,10 +137,10 @@ export function YearGrid({ events, initialYear = 2026, lastSyncedAt }: YearGridP
   }
 
   return (
-    <main aria-label={`${year} yıllık takvim`} className="mx-auto max-w-[1600px] p-4 lg:p-6">
-      <header className="mb-4">
-        <p className="text-sm font-semibold uppercase tracking-[0.16em] text-sky-700">Kişisel planlayıcı</p>
-        <h1 className="mt-1 text-2xl font-semibold tracking-tight text-slate-900">{year} Yıllık Takvim</h1>
+    <main aria-label={`${year} yıllık takvim`} className="mx-auto max-w-[1680px] p-4 sm:p-6 lg:p-8">
+      <header className="mb-5">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-sky-700">Kişisel planlayıcı</p>
+        <h1 className="mt-1 text-3xl font-semibold tracking-tight text-slate-900">{year} Yıllık Takvim</h1>
       </header>
       <CalendarToolbar
         exportRange={activeExportRange(view, selectedDate, year)}
@@ -158,7 +158,7 @@ export function YearGrid({ events, initialYear = 2026, lastSyncedAt }: YearGridP
         view={view}
         year={year}
       />
-      <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_19rem] xl:gap-5">
+      <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_19rem] xl:gap-8">
         {view === 'year' ? (
           <div className="calendar-year-rail order-1 min-w-0">
             <HorizontalYearRail eventsByDay={eventsByDay} months={months} onSelectDate={selectDate} selectedDate={selectedDate} />

@@ -27,8 +27,8 @@ export function CalendarToolbar({
   year, sources, selectedSourceIds, syncState, lastSyncedAt, onPreviousYear, onNextYear, onToday, onSourceChange, onRefresh, view, onViewChange, onConnections, exportRange,
 }: CalendarToolbarProps) {
   return (
-    <nav aria-label="Takvim araçları" className="mb-5 rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
-      <div className="flex flex-col gap-2">
+    <nav aria-label="Takvim araçları" className="mb-6 border-b border-slate-200 pb-3">
+      <div className="flex flex-col gap-3">
         <div className="flex w-full flex-wrap items-center gap-2">
           <div className="flex items-center gap-1" aria-label="Yıl seçici">
             <button className="calendar-control" onClick={onPreviousYear} type="button" aria-label="Önceki yıl">‹</button>
@@ -37,14 +37,14 @@ export function CalendarToolbar({
           </div>
           <button className="calendar-control" onClick={onToday} type="button">Bugün</button>
         </div>
-        <div className="flex w-full min-w-0 flex-wrap items-center gap-2">
+        <div className="flex w-full min-w-0 flex-wrap items-center gap-2 lg:flex-nowrap">
           <ViewSwitcher onChange={onViewChange} view={view} />
           <button className="calendar-control" onClick={onConnections} type="button">Bağlantılar</button>
           <span className="hidden h-6 w-px bg-slate-200 sm:block" aria-hidden="true" />
           <div className="w-full min-w-0 sm:w-auto">
             <SourceFilter sources={sources} selectedSourceIds={selectedSourceIds} onChange={onSourceChange} />
           </div>
-          <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto lg:ml-auto">
+          <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto lg:ml-auto lg:flex-nowrap">
             <span aria-live="polite" className="hidden text-xs text-slate-500 lg:inline">{formatSyncStatus(syncState, lastSyncedAt)}</span>
             <button className="calendar-control bg-sky-700 text-white hover:bg-sky-800 disabled:bg-sky-400" disabled={syncState === 'syncing'} onClick={onRefresh} type="button">
               {syncState === 'syncing' ? 'Yenileniyor…' : 'Yenile'}
