@@ -11,7 +11,8 @@ type SelectedMonthRevealInput = {
 };
 
 export function shouldRevealSelectedMonth({ isPhone, previousYear, selectedYear }: SelectedMonthRevealInput): boolean {
-  return !isPhone || previousYear === null || previousYear !== selectedYear;
+  void isPhone;
+  return previousYear === null || previousYear !== selectedYear;
 }
 
 /** Moves a calendar date by whole months while keeping the nearest valid day. */

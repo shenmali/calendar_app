@@ -60,7 +60,7 @@ test('makes every monthly day strip keyboard-focusable for horizontal panning', 
   expect(markup).toContain('overflow-x-auto');
 });
 
-test('scrolls and focuses the selected-day detail panel on mobile selection', () => {
+test('keeps the page position when a calendar day is selected', () => {
   const calls: string[] = [];
   const panel = {
     scrollIntoView: (options: ScrollIntoViewOptions) => calls.push(`${options.behavior}:${options.block}`),
@@ -68,10 +68,10 @@ test('scrolls and focuses the selected-day detail panel on mobile selection', ()
   } as unknown as HTMLElement;
 
   revealSelectedDayDetail(panel);
-  expect(calls).toEqual(['smooth:start', 'focus:true']);
+  expect(calls).toEqual(['focus:true']);
 });
 
-test('reveals the selected-day detail panel without animation for reduced motion', () => {
+test('keeps the page position when reduced motion is enabled', () => {
   const calls: string[] = [];
   const panel = {
     scrollIntoView: (options: ScrollIntoViewOptions) => calls.push(`${options.behavior}:${options.block}`),
@@ -79,17 +79,17 @@ test('reveals the selected-day detail panel without animation for reduced motion
   } as unknown as HTMLElement;
 
   revealSelectedDayDetail(panel, true);
-  expect(calls).toEqual(['auto:start', 'focus:true']);
+  expect(calls).toEqual(['focus:true']);
 });
 
-test('reveals selected months for desktop changes and only phone mount or year changes', () => {
+test('reveals selected months only on the first render or after a year change', () => {
   expect(shouldRevealSelectedMonth({ isPhone: true, previousYear: null, selectedYear: '2026' })).toBe(true);
   expect(shouldRevealSelectedMonth({ isPhone: true, previousYear: '2026', selectedYear: '2026' })).toBe(false);
   expect(shouldRevealSelectedMonth({ isPhone: true, previousYear: '2026', selectedYear: '2027' })).toBe(true);
-  expect(shouldRevealSelectedMonth({ isPhone: false, previousYear: '2026', selectedYear: '2026' })).toBe(true);
+  expect(shouldRevealSelectedMonth({ isPhone: false, previousYear: '2026', selectedYear: '2026' })).toBe(false);
 });
 
-test('reveals details even when tapping the already selected day', () => {
+test('focuses details when tapping a calendar day without scrolling', () => {
   const calls: string[] = [];
   selectCalendarDay('2026-01-15', {
     reveal: () => calls.push('reveal'),
