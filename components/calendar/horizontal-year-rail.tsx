@@ -68,7 +68,7 @@ export function HorizontalYearRail({ months, eventsByDay, selectedDate, onSelect
           return (
             <section
               aria-labelledby={headingId}
-              className="relative scroll-mt-4 overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-[0_1px_3px_rgba(15,23,42,0.04)]"
+              className="relative scroll-mt-4 rounded-2xl border border-slate-100 bg-white shadow-[0_1px_3px_rgba(15,23,42,0.04)]"
               data-month={monthKey}
               data-selected-month={month.month === selectedMonth ? month.month : undefined}
               id={`year-${selectedYear}-month-${monthNumber}`}
