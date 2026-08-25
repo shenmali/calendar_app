@@ -14,6 +14,9 @@ const mocks = vi.hoisted(() => ({
   eq: vi.fn(),
   maybeSingle: vi.fn(),
   upsert: vi.fn(),
+  syncConnection: vi.fn(),
+  selectConnection: vi.fn(),
+  singleConnection: vi.fn(),
 }));
 
 vi.mock('@/lib/supabase/server', () => ({ createClient: mocks.createServerClient }));
@@ -23,6 +26,10 @@ vi.mock('@/lib/providers/oauth-state', () => ({
   consumeOAuthState: mocks.consumeOAuthState,
   verifyOAuthState: mocks.verifyOAuthState,
   oauthStateCookieName: (provider: string) => `oauth_state_${provider}`,
+}));
+vi.mock('@/lib/providers/sync', () => ({ syncConnection: mocks.syncConnection }));
+vi.mock('@/lib/providers/sync-lock', () => ({
+  defaultSyncRange: () => ({ start: '2026-08-15T00:00:00.000Z', end: '2027-08-15T00:00:00.000Z' }),
 }));
 
 import { GET as startGoogle } from '@/app/api/connections/google/start/route';
@@ -50,7 +57,10 @@ beforeEach(() => {
   mocks.select.mockReturnValue({ eq: mocks.eq });
   mocks.eq.mockReturnValue({ eq: mocks.eq, maybeSingle: mocks.maybeSingle });
   mocks.maybeSingle.mockResolvedValue({ data: null, error: null });
-  mocks.upsert.mockResolvedValue({ error: null });
+  mocks.singleConnection.mockResolvedValue({ data: { id: 'connection-1' }, error: null });
+  mocks.selectConnection.mockReturnValue({ single: mocks.singleConnection });
+  mocks.upsert.mockReturnValue({ select: mocks.selectConnection });
+  mocks.syncConnection.mockResolvedValue({ connectionId: 'connection-1', imported: 0, updated: 0, removed: 0, completedAt: '2026-08-15T00:00:00.000Z' });
 });
 
 afterEach(() => {
@@ -111,6 +121,9 @@ test('google callback encrypts access and refresh tokens before its server-only 
     access_token_ciphertext: expect.not.stringContaining('access-secret'),
     refresh_token_ciphertext: expect.not.stringContaining('refresh-secret'),
   }), { onConflict: 'provider,provider_account_id' });
+  expect(mocks.syncConnection).toHaveBeenCalledWith('connection-1', {
+    start: '2026-08-15T00:00:00.000Z', end: '2027-08-15T00:00:00.000Z',
+  });
   expect(response.headers.get('location')).toBe('https://calendar.example.com/');
   expect(response.headers.get('set-cookie')).toContain('oauth_state_google=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT');
 });

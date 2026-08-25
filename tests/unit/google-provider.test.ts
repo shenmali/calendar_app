@@ -1,6 +1,6 @@
 import { expect, test, vi } from 'vitest';
 
-import { listGoogleEvents, normalizeGoogleEvent } from '@/lib/providers/google';
+import { listGoogleCalendars, listGoogleEvents, normalizeGoogleEvent } from '@/lib/providers/google';
 
 const context = {
   connection: { id: 'connection-1', userId: 'user-1', provider: 'google' as const, encryptedAccessToken: 'cipher', encryptedRefreshToken: null },
@@ -50,6 +50,22 @@ test('lists Google events through a GET-only Events API request', async () => {
 
   expect(requestMethods).toEqual(['GET']);
   expect(fetchImpl.mock.calls[0][0].toString()).toContain('/calendar/v3/calendars/team%2Fcalendar/events');
+});
+
+test('discovers Google calendars with only the primary source selected by default', async () => {
+  const fetchImpl = vi.fn(async (_url: RequestInfo | URL, init?: RequestInit) => {
+    expect(init?.method).toBe('GET');
+    return new Response(JSON.stringify({ items: [
+      { id: 'work@example.com', summary: 'İş', backgroundColor: '#0b57d0' },
+      { id: 'primary', summary: 'Kişisel', primary: true, timeZone: 'Europe/Istanbul' },
+    ] }), { status: 200 });
+  });
+
+  await expect(listGoogleCalendars({ accessToken: 'server-token', fetchImpl })).resolves.toEqual([
+    { id: 'work@example.com', name: 'İş', description: null, timeZone: null, color: '#0b57d0', isSelected: false },
+    { id: 'primary', name: 'Kişisel', description: null, timeZone: 'Europe/Istanbul', color: null, isSelected: true },
+  ]);
+  expect(fetchImpl.mock.calls[0][0].toString()).toContain('/calendar/v3/users/me/calendarList');
 });
 
 test('exhausts Google event pages with GET requests', async () => {
