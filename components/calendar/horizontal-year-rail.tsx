@@ -4,6 +4,7 @@ import React, { useEffect, useId, useRef } from 'react';
 
 import { MonthDayStrip } from '@/components/calendar/month-day-strip';
 import { shouldRevealSelectedMonth } from '@/lib/calendar/day-selection';
+import { revealDateInStrip } from '@/lib/calendar/day-strip-reveal';
 import type { CalendarDisplayEvent } from '@/lib/calendar/types';
 import type { MonthModel } from '@/lib/calendar/year-grid';
 
@@ -12,12 +13,15 @@ type HorizontalYearRailProps = {
   eventsByDay: Map<string, CalendarDisplayEvent[]>;
   selectedDate: string;
   onSelectDate: (date: string) => void;
+  selectedDayDetail?: React.ReactNode;
+  revealNonce?: number;
 };
 
-export function HorizontalYearRail({ months, eventsByDay, selectedDate, onSelectDate }: HorizontalYearRailProps) {
+export function HorizontalYearRail({ months, eventsByDay, selectedDate, onSelectDate, selectedDayDetail, revealNonce = 0 }: HorizontalYearRailProps) {
   const instructionId = useId();
   const railRef = useRef<HTMLDivElement | null>(null);
   const previousSelectedYearRef = useRef<string | null>(null);
+  const previousRevealNonceRef = useRef(revealNonce);
   const selectedYear = selectedDate.slice(0, 4);
   const selectedMonth = Number(selectedDate.slice(5, 7)) - 1;
   const selectedMonthKey = selectedDate.slice(0, 7);
@@ -31,18 +35,21 @@ export function HorizontalYearRail({ months, eventsByDay, selectedDate, onSelect
       selectedYear,
     });
     previousSelectedYearRef.current = selectedYear;
-    if (!shouldReveal) return;
-
+    const forceReveal = previousRevealNonceRef.current !== revealNonce;
+    previousRevealNonceRef.current = revealNonce;
     const selectedCard = railRef.current?.querySelector<HTMLElement>(`[data-month="${selectedMonthKey}"]`);
     if (!selectedCard) return;
 
     const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    selectedCard.scrollIntoView({
-      behavior: prefersReducedMotion ? 'auto' : 'smooth',
-      block: 'nearest',
-      inline: 'center',
-    });
-  }, [selectedMonthKey, selectedYear]);
+    if (shouldReveal || forceReveal) {
+      selectedCard.scrollIntoView({
+        behavior: prefersReducedMotion ? 'auto' : 'smooth',
+        block: 'nearest',
+      });
+      const selectedStrip = selectedCard.querySelector<HTMLElement>('[data-testid="month-day-strip"]');
+      if (selectedStrip) revealDateInStrip(selectedStrip, selectedDate, prefersReducedMotion);
+    }
+  }, [revealNonce, selectedDate, selectedMonthKey, selectedYear]);
 
   return (
     <section aria-label="Yıllık takvim ayları" className="min-w-0">
@@ -71,7 +78,8 @@ export function HorizontalYearRail({ months, eventsByDay, selectedDate, onSelect
                 <h2 className="text-base font-semibold tracking-tight text-slate-800" id={headingId}>{month.label}</h2>
                 <span aria-hidden="true" className="select-none text-4xl font-semibold leading-none tracking-tighter text-slate-100 sm:text-6xl">{String(month.month + 1).padStart(2, '0')}</span>
               </div>
-              <MonthDayStrip eventsByDay={eventsByDay} month={month} onSelectDate={onSelectDate} selectedDate={selectedDate} />
+              <MonthDayStrip eventsByDay={eventsByDay} headingId={headingId} instructionId={instructionId} month={month} onSelectDate={onSelectDate} selectedDate={selectedDate} />
+              {month.month === selectedMonth ? selectedDayDetail : null}
             </section>
           );
         })}

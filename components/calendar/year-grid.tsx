@@ -63,6 +63,7 @@ export function YearGrid({ events, initialYear = 2026, lastSyncedAt }: YearGridP
   const previousSourceIds = useRef(sourceIds);
   const [selectedSourceIds, setSelectedSourceIds] = useState(() => initialSelectedSourceIds(sources));
   const [syncState, setSyncState] = useState<'idle' | 'syncing' | 'success' | 'partial' | 'error'>('idle');
+  const [revealNonce, setRevealNonce] = useState(0);
   const months = useMemo(() => buildYearMonths(year, 1), [year]);
   const filteredEvents = useMemo(() => selectEvents(events, { sourceIds: selectedSourceIds }), [events, selectedSourceIds]);
   const eventsByDay = useMemo(() => groupEventsByDay(filteredEvents), [filteredEvents]);
@@ -91,6 +92,7 @@ export function YearGrid({ events, initialYear = 2026, lastSyncedAt }: YearGridP
     const today = getTodayInIstanbul();
     setYear(Number(today.slice(0, 4)));
     setSelectedDate(today);
+    setRevealNonce((current) => current + 1);
   }
 
   function updateView(nextView: CalendarView) {
@@ -126,12 +128,14 @@ export function YearGrid({ events, initialYear = 2026, lastSyncedAt }: YearGridP
   function selectDate(date: string) {
     selectCalendarDay(date, {
       select: setSelectedDate,
-      // Mobile focus announces the nearby live region without making the rail own focus.
+      // Wait for React to move the mobile inspector under the newly selected month.
       shouldReveal: () => window.matchMedia('(max-width: 767px)').matches && detailPanelRef.current !== null,
       reveal: () => {
-        if (detailPanelRef.current) {
-          revealSelectedDayDetail(detailPanelRef.current, window.matchMedia('(prefers-reduced-motion: reduce)').matches);
-        }
+        window.requestAnimationFrame(() => {
+          if (detailPanelRef.current) {
+            revealSelectedDayDetail(detailPanelRef.current, window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+          }
+        });
       },
     });
   }
@@ -161,13 +165,20 @@ export function YearGrid({ events, initialYear = 2026, lastSyncedAt }: YearGridP
       <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_19rem] xl:gap-8">
         {view === 'year' ? (
           <div className="calendar-year-rail order-1 min-w-0">
-            <HorizontalYearRail eventsByDay={eventsByDay} months={months} onSelectDate={selectDate} selectedDate={selectedDate} />
+            <HorizontalYearRail
+              eventsByDay={eventsByDay}
+              months={months}
+              onSelectDate={selectDate}
+              revealNonce={revealNonce}
+              selectedDate={selectedDate}
+              selectedDayDetail={<EventDetailPanel className="mt-4 xl:hidden" date={selectedDate} events={selectedEvents} panelRef={detailPanelRef} />}
+            />
           </div>
         ) : null}
         {view === 'month' ? <div className="order-2"><MonthView eventsByDay={eventsByDay} month={activeMonth} onSelectDate={selectDate} selectedDate={selectedDate} /></div> : null}
         {view === 'week' ? <div className="order-2"><WeekView events={filteredEvents} onSelectDate={selectDate} selectedDate={selectedDate} /></div> : null}
         {view === 'day' ? <div className="order-2"><DayView date={selectedDate} events={selectedEvents} /></div> : null}
-        {view !== 'day' ? <div className={view === 'year' ? 'order-2' : 'order-1 xl:order-2'}><EventDetailPanel date={selectedDate} events={selectedEvents} panelRef={detailPanelRef} /></div> : null}
+        {view !== 'day' ? <div className={view === 'year' ? 'order-2 hidden xl:block' : 'order-1 xl:order-2'}><EventDetailPanel date={selectedDate} events={selectedEvents} panelRef={view === 'year' ? undefined : detailPanelRef} /></div> : null}
       </div>
       {filteredEvents.length === 0 ? <p className="mt-4 text-sm text-slate-500">Bağlı takvimlerde gösterilecek etkinlik yok.</p> : null}
       <ConnectionsDialog onClose={() => setConnectionsOpen(false)} onConnectionDeleted={removeConnectionFromView} onSourceSelectionChange={updateConnectionSourceSelection} open={connectionsOpen} />

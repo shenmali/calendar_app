@@ -9,6 +9,8 @@ type MonthDayStripProps = {
   eventsByDay: Map<string, CalendarDisplayEvent[]>;
   selectedDate: string;
   onSelectDate: (date: string) => void;
+  headingId: string;
+  instructionId: string;
 };
 
 function isDatedDay(day: DayModel): day is DayModel & { date: string } {
@@ -25,15 +27,17 @@ function isWeekend(date: string): boolean {
   return weekday === 0 || weekday === 6;
 }
 
-export function MonthDayStrip({ month, eventsByDay, selectedDate, onSelectDate }: MonthDayStripProps) {
+export function MonthDayStrip({ month, eventsByDay, selectedDate, onSelectDate, headingId, instructionId }: MonthDayStripProps) {
   const days = month.weeks.flat().filter(isDatedDay);
   const today = eventDateInIstanbul({ startsAt: new Date().toISOString(), isAllDay: false });
 
   return (
     <div
-      aria-label={`${month.label} günleri`}
+      aria-describedby={instructionId}
+      aria-labelledby={headingId}
       className="month-day-strip overflow-x-auto overscroll-x-contain pb-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-600"
       data-testid="month-day-strip"
+      role="group"
       tabIndex={0}
     >
       <div className="flex min-w-max border-y border-slate-200 bg-white">
@@ -50,6 +54,7 @@ export function MonthDayStrip({ month, eventsByDay, selectedDate, onSelectDate }
               aria-pressed={selected}
               className={`month-day-strip__day relative flex min-h-32 w-[5.75rem] shrink-0 flex-col border-r border-slate-200 px-2 py-2 text-left transition hover:bg-sky-50 sm:min-h-36 sm:w-28 ${weekend ? 'month-day-strip__day--weekend' : ''} ${selected ? 'month-day-strip__day--selected' : ''}`}
               key={day.date}
+              data-date={day.date}
               onClick={() => onSelectDate(day.date)}
               type="button"
             >

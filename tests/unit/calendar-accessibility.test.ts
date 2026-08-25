@@ -56,7 +56,7 @@ test('makes every monthly day strip keyboard-focusable for horizontal panning', 
 
   expect(railOpeningTag(markup)).toContain('aria-label="Yıllık gün şeritleri"');
   expect([...markup.matchAll(/data-testid="month-day-strip"/g)]).toHaveLength(12);
-  expect([...markup.matchAll(/data-testid="month-day-strip"[^>]*tabindex="0"/g)]).toHaveLength(12);
+  expect([...markup.matchAll(/aria-labelledby="month-2026-\d\d"[^>]*data-testid="month-day-strip"[^>]*tabindex="0"/g)]).toHaveLength(12);
   expect(markup).toContain('overflow-x-auto');
 });
 

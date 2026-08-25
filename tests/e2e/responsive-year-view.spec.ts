@@ -28,6 +28,10 @@ test('keeps the annual rail before selected-day details and focuses them on a ph
   await day.click();
   await expect(details).toBeFocused();
   expect(await januaryStrip.evaluate((element) => element.scrollLeft)).toBe(stripScrollBeforeSelection);
+  const januarySection = rail.locator('[data-month="2026-01"]');
+  const [januaryBox, selectedDetailBox] = await Promise.all([januarySection.boundingBox(), details.boundingBox()]);
+  expect(selectedDetailBox?.y).toBeGreaterThan(januaryBox?.y ?? Number.NEGATIVE_INFINITY);
+  expect(selectedDetailBox?.y).toBeLessThan((januaryBox?.y ?? 0) + (januaryBox?.height ?? Number.POSITIVE_INFINITY) + 24);
   await expect(details).toHaveCSS('padding', '16px');
   await expect(details).toHaveCSS('position', 'static');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
